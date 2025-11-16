@@ -3,13 +3,56 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/router/app_router.dart';
 import '../../../features/auth/data/providers/auth_provider.dart';
+import '../../../features/stakes/data/providers/stake_provider.dart';
+import '../../../shared/models/stake_model.dart';
 
-class StakesTab extends ConsumerWidget {
+class StakesTab extends ConsumerStatefulWidget {
   const StakesTab({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<StakesTab> createState() => _StakesTabState();
+}
+
+class _StakesTabState extends ConsumerState<StakesTab> with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(() {
+      if (!_tabController.indexIsChanging) {
+        _onTabChanged(_tabController.index);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  void _onTabChanged(int index) {
+    StakeStatus? filter;
+    switch (index) {
+      case 0:
+        filter = StakeStatus.active;
+        break;
+      case 1:
+        filter = StakeStatus.completed;
+        break;
+      case 2:
+        filter = StakeStatus.failed;
+        break;
+    }
+    ref.read(stakesProvider.notifier).filterByStatus(filter);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final user = ref.watch(currentUserProvider);
+    final stakesState = ref.watch(stakesProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -24,9 +67,7 @@ class StakesTab extends ConsumerWidget {
         ],
       ),
       body: RefreshIndicator(
-        onRefresh: () async {
-          // TODO: Refresh stakes
-        },
+        onRefresh: () => ref.read(stakesProvider.notifier).refresh(),
         child: CustomScrollView(
           slivers: [
             // User Stats Card
@@ -126,33 +167,55 @@ class StakesTab extends ConsumerWidget {
                 ),
               ),
             ),
+
             // Filter Tabs
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: DefaultTabController(
-                  length: 3,
-                  child: TabBar(
-                    labelColor: Theme.of(context).primaryColor,
-                    unselectedLabelColor: Colors.grey,
-                    indicatorColor: Theme.of(context).primaryColor,
-                    tabs: const [
-                      Tab(text: 'Actifs'),
-                      Tab(text: 'Complétés'),
-                      Tab(text: 'Échoués'),
-                    ],
-                  ),
+                child: TabBar(
+                  controller: _tabController,
+                  labelColor: Theme.of(context).primaryColor,
+                  unselectedLabelColor: Colors.grey,
+                  indicatorColor: Theme.of(context).primaryColor,
+                  tabs: const [
+                    Tab(text: 'Actifs'),
+                    Tab(text: 'Complétés'),
+                    Tab(text: 'Échoués'),
+                  ],
                 ),
               ),
             ),
-            // Stakes List (Empty State for now)
-            SliverPadding(
-              padding: const EdgeInsets.all(16),
-              sliver: SliverList(
-                delegate: SliverChildListDelegate([
-                  const SizedBox(height: 100),
-                  Center(
+
+            // Stakes List
+            if (stakesState.isLoading)
+              const SliverFillRemaining(
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (stakesState.error != null)
+              SliverFillRemaining(
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                      const SizedBox(height: 16),
+                      Text(stakesState.error!),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: () => ref.read(stakesProvider.notifier).refresh(),
+                        child: const Text('Réessayer'),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else if (stakesState.stakes.isEmpty)
+              SliverFillRemaining(
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(32),
                     child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
                           Icons.emoji_events_outlined,
@@ -161,7 +224,7 @@ class StakesTab extends ConsumerWidget {
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          'Aucun stake actif',
+                          'Aucun stake',
                           style: Theme.of(context).textTheme.titleLarge?.copyWith(
                                 color: Colors.grey[600],
                               ),
@@ -172,6 +235,7 @@ class StakesTab extends ConsumerWidget {
                           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                 color: Colors.grey[500],
                               ),
+                          textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 24),
                         ElevatedButton.icon(
@@ -184,9 +248,21 @@ class StakesTab extends ConsumerWidget {
                       ],
                     ),
                   ),
-                ]),
+                ),
+              )
+            else
+              SliverPadding(
+                padding: const EdgeInsets.all(16),
+                sliver: SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      final stake = stakesState.stakes[index];
+                      return _buildStakeCard(context, stake);
+                    },
+                    childCount: stakesState.stakes.length,
+                  ),
+                ),
               ),
-            ),
           ],
         ),
       ),
@@ -198,5 +274,175 @@ class StakesTab extends ConsumerWidget {
         label: const Text('Nouveau Stake'),
       ),
     );
+  }
+
+  Widget _buildStakeCard(BuildContext context, StakeModel stake) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: InkWell(
+        onTap: () {
+          context.go('${AppRoutes.home}/stakes/${stake.id}');
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header
+              Row(
+                children: [
+                  _getCategoryIcon(stake.category),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          stake.title,
+                          style: Theme.of(context).textTheme.titleMedium,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          stake.categoryName,
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: Colors.grey[600],
+                              ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Text(
+                    '${stake.amountEUR.toStringAsFixed(0)}€',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          color: Colors.green,
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Progress
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    '${stake.currentCount} / ${stake.requiredCount}',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  Text(
+                    '${stake.progressPercentage.toStringAsFixed(0)}%',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context).primaryColor,
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              LinearProgressIndicator(
+                value: stake.progressPercentage / 100,
+                backgroundColor: Colors.grey[300],
+                minHeight: 8,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              const SizedBox(height: 12),
+
+              // Footer
+              Row(
+                children: [
+                  Icon(Icons.calendar_today, size: 16, color: Colors.grey[600]),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      _formatEndDate(stake.endDate),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Colors.grey[600],
+                          ),
+                    ),
+                  ),
+                  if (stake.isActive && !stake.isExpired)
+                    Chip(
+                      label: Text(
+                        _formatTimeRemaining(stake.timeRemaining),
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                      backgroundColor: Theme.of(context).primaryColor.withOpacity(0.1),
+                      side: BorderSide.none,
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _getCategoryIcon(StakeCategory category) {
+    IconData icon;
+    Color color;
+
+    switch (category) {
+      case StakeCategory.fitness:
+        icon = Icons.fitness_center;
+        color = Colors.red;
+        break;
+      case StakeCategory.education:
+        icon = Icons.school;
+        color = Colors.blue;
+        break;
+      case StakeCategory.productivity:
+        icon = Icons.work;
+        color = Colors.purple;
+        break;
+      case StakeCategory.finance:
+        icon = Icons.account_balance;
+        color = Colors.green;
+        break;
+      case StakeCategory.personalDevelopment:
+        icon = Icons.self_improvement;
+        color = Colors.orange;
+        break;
+      case StakeCategory.family:
+        icon = Icons.family_restroom;
+        color = Colors.pink;
+        break;
+      case StakeCategory.creativity:
+        icon = Icons.palette;
+        color = Colors.deepPurple;
+        break;
+      case StakeCategory.home:
+        icon = Icons.home;
+        color = Colors.brown;
+        break;
+      case StakeCategory.digitalDetox:
+        icon = Icons.phone_disabled;
+        color = Colors.teal;
+        break;
+    }
+
+    return CircleAvatar(
+      backgroundColor: color.withOpacity(0.1),
+      radius: 20,
+      child: Icon(icon, color: color, size: 20),
+    );
+  }
+
+  String _formatEndDate(DateTime date) {
+    return 'Se termine le ${date.day}/${date.month}/${date.year}';
+  }
+
+  String _formatTimeRemaining(Duration duration) {
+    if (duration.inDays > 0) {
+      return '${duration.inDays}j restants';
+    } else if (duration.inHours > 0) {
+      return '${duration.inHours}h restantes';
+    } else {
+      return '${duration.inMinutes}min restantes';
+    }
   }
 }

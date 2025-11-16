@@ -5,6 +5,8 @@ import '../../features/splash/presentation/splash_screen.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/register_screen.dart';
 import '../../features/home/presentation/home_screen.dart';
+import '../../features/stakes/presentation/create_stake_screen.dart';
+import '../../features/stakes/presentation/stake_detail_screen.dart';
 
 // Route paths
 class AppRoutes {
@@ -127,31 +129,6 @@ final routerProvider = Provider<GoRouter>((ref) {
 });
 
 // Placeholder screens (to be implemented)
-class CreateStakeScreen extends StatelessWidget {
-  const CreateStakeScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Create Stake')),
-      body: const Center(child: Text('Create Stake Screen - To be implemented')),
-    );
-  }
-}
-
-class StakeDetailScreen extends StatelessWidget {
-  final int stakeId;
-  const StakeDetailScreen({super.key, required this.stakeId});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Stake Detail')),
-      body: Center(child: Text('Stake Detail Screen for ID: $stakeId')),
-    );
-  }
-}
-
 class ChallengesScreen extends StatelessWidget {
   const ChallengesScreen({super.key});
 
