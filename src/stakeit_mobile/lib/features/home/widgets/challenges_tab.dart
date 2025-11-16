@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/router/app_router.dart';
+import '../../../core/theme/app_constants.dart';
+import '../../../shared/widgets/widgets.dart';
+import '../../../shared/utils/utils.dart';
 import '../../../shared/models/challenge_model.dart';
 import '../../../features/challenges/data/providers/challenge_provider.dart';
 
@@ -80,43 +83,17 @@ class _ChallengesTabState extends ConsumerState<ChallengesTab> {
               const SliverToBoxAdapter(
                 child: Padding(
                   padding: EdgeInsets.all(32),
-                  child: Center(child: CircularProgressIndicator()),
+                  child: LoadingIndicator(message: 'Chargement de vos challenges...'),
                 ),
               )
             else if (challengesState.myChallenges.isEmpty)
-              SliverToBoxAdapter(
+              const SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(32),
-                      child: Center(
-                        child: Column(
-                          children: [
-                            Icon(
-                              Icons.people_outline,
-                              size: 48,
-                              color: Colors.grey[400],
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              'Aucun challenge en cours',
-                              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                    color: Colors.grey[600],
-                                  ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Rejoignez un challenge public ou créez le vôtre',
-                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: Colors.grey[500],
-                                  ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
+                  padding: EdgeInsets.all(16),
+                  child: EmptyState(
+                    icon: Icons.people_outline,
+                    title: 'Aucun challenge en cours',
+                    subtitle: 'Rejoignez un challenge public ou créez le vôtre',
                   ),
                 ),
               )
@@ -167,65 +144,29 @@ class _ChallengesTabState extends ConsumerState<ChallengesTab> {
               const SliverToBoxAdapter(
                 child: Padding(
                   padding: EdgeInsets.all(32),
-                  child: Center(child: CircularProgressIndicator()),
+                  child: LoadingIndicator(message: 'Chargement des challenges publics...'),
                 ),
               )
             else if (challengesState.error != null)
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.all(32),
-                  child: Center(
-                    child: Column(
-                      children: [
-                        const Icon(Icons.error_outline, size: 64, color: Colors.red),
-                        const SizedBox(height: 16),
-                        Text(challengesState.error!),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: () {
-                            ref.read(challengesProvider.notifier).loadPublicChallenges();
-                          },
-                          child: const Text('Réessayer'),
-                        ),
-                      ],
-                    ),
+                  child: ErrorDisplay(
+                    message: ErrorMapper.mapChallengeError(challengesState.error!),
+                    onRetry: () {
+                      ref.read(challengesProvider.notifier).loadPublicChallenges();
+                    },
                   ),
                 ),
               )
             else if (challengesState.publicChallenges.isEmpty)
-              SliverToBoxAdapter(
+              const SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(32),
-                      child: Center(
-                        child: Column(
-                          children: [
-                            Icon(
-                              Icons.public_off,
-                              size: 48,
-                              color: Colors.grey[400],
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              'Aucun challenge public disponible',
-                              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                    color: Colors.grey[600],
-                                  ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Soyez le premier à créer un challenge public !',
-                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: Colors.grey[500],
-                                  ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
+                  padding: EdgeInsets.all(16),
+                  child: EmptyState(
+                    icon: Icons.public_off,
+                    title: 'Aucun challenge public disponible',
+                    subtitle: 'Soyez le premier à créer un challenge public !',
                   ),
                 ),
               )
@@ -298,7 +239,7 @@ class _ChallengesTabState extends ConsumerState<ChallengesTab> {
                       ],
                     ),
                   ),
-                  _buildStatusChip(context, challenge.status),
+                  StatusBadge.fromChallengeStatus(challenge.status),
                 ],
               ),
               const SizedBox(height: 16),
@@ -342,9 +283,9 @@ class _ChallengesTabState extends ConsumerState<ChallengesTab> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '${challenge.totalPrizePool.toStringAsFixed(0)}€',
+                        CurrencyFormatter.format(challenge.totalPrizePool),
                         style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              color: Colors.green,
+                              color: AppColors.success,
                               fontWeight: FontWeight.bold,
                             ),
                       ),
@@ -384,7 +325,7 @@ class _ChallengesTabState extends ConsumerState<ChallengesTab> {
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
-                      '${challenge.entryFeeEUR.toStringAsFixed(0)}€',
+                      CurrencyFormatter.format(challenge.entryFeeEUR),
                       style: TextStyle(
                         color: Theme.of(context).primaryColor,
                         fontWeight: FontWeight.bold,
@@ -475,47 +416,6 @@ class _ChallengesTabState extends ConsumerState<ChallengesTab> {
       backgroundColor: color.withOpacity(0.1),
       radius: 20,
       child: Icon(icon, color: color, size: 20),
-    );
-  }
-
-  Widget _buildStatusChip(BuildContext context, ChallengeStatus status) {
-    Color color;
-    String label;
-
-    switch (status) {
-      case ChallengeStatus.open:
-        color = Colors.orange;
-        label = 'Ouvert';
-        break;
-      case ChallengeStatus.active:
-        color = Colors.green;
-        label = 'En cours';
-        break;
-      case ChallengeStatus.completed:
-        color = Colors.blue;
-        label = 'Terminé';
-        break;
-      case ChallengeStatus.cancelled:
-        color = Colors.red;
-        label = 'Annulé';
-        break;
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: color,
-          fontSize: 12,
-          fontWeight: FontWeight.w500,
-        ),
-      ),
     );
   }
 
