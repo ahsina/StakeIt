@@ -227,7 +227,8 @@ app.UseAuthorization();
 app.MapControllers();
 
 // SignalR Hubs
-// app.MapHub<ChallengeHub>("/hubs/challenge");
+using StakeIt.API.Hubs;
+app.MapHub<ChallengeHub>("/hubs/challenge");
 
 // Health check endpoint
 app.MapGet("/health", () => Results.Ok(new
