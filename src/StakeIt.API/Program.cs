@@ -144,7 +144,13 @@ builder.Services.AddSignalR();
 // APPLICATION SERVICES
 // ========================================
 
-// TODO: Add application services here
+using StakeIt.API.Services;
+
+// Authentication Services
+builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IJwtService, JwtService>();
+
+// TODO: Add more application services here as we build them
 // builder.Services.AddScoped<IStakeService, StakeService>();
 // builder.Services.AddScoped<IChallengeService, ChallengeService>();
 // builder.Services.AddScoped<IPaymentService, PaymentService>();
