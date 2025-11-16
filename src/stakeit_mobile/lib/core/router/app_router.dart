@@ -1,0 +1,269 @@
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+// Route paths
+class AppRoutes {
+  static const String splash = '/';
+  static const String login = '/login';
+  static const String register = '/register';
+  static const String home = '/home';
+  static const String createStake = '/create-stake';
+  static const String stakeDetail = '/stakes/:id';
+  static const String challenges = '/challenges';
+  static const String challengeDetail = '/challenges/:id';
+  static const String createChallenge = '/create-challenge';
+  static const String profile = '/profile';
+  static const String settings = '/settings';
+}
+
+// Router Provider
+final routerProvider = Provider<GoRouter>((ref) {
+  // final authState = ref.watch(authStateProvider);
+
+  return GoRouter(
+    initialLocation: AppRoutes.splash,
+    debugLogDiagnostics: true,
+    routes: [
+      // Splash Screen
+      GoRoute(
+        path: AppRoutes.splash,
+        name: 'splash',
+        builder: (context, state) => const SplashScreen(),
+      ),
+
+      // Auth Routes
+      GoRoute(
+        path: AppRoutes.login,
+        name: 'login',
+        builder: (context, state) => const LoginScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.register,
+        name: 'register',
+        builder: (context, state) => const RegisterScreen(),
+      ),
+
+      // Main App Routes (with bottom nav)
+      GoRoute(
+        path: AppRoutes.home,
+        name: 'home',
+        builder: (context, state) => const HomeScreen(),
+        routes: [
+          // Stakes
+          GoRoute(
+            path: 'create-stake',
+            name: 'createStake',
+            builder: (context, state) => const CreateStakeScreen(),
+          ),
+          GoRoute(
+            path: 'stakes/:id',
+            name: 'stakeDetail',
+            builder: (context, state) {
+              final id = state.pathParameters['id']!;
+              return StakeDetailScreen(stakeId: int.parse(id));
+            },
+          ),
+
+          // Challenges
+          GoRoute(
+            path: 'challenges',
+            name: 'challenges',
+            builder: (context, state) => const ChallengesScreen(),
+          ),
+          GoRoute(
+            path: 'challenges/:id',
+            name: 'challengeDetail',
+            builder: (context, state) {
+              final id = state.pathParameters['id']!;
+              return ChallengeDetailScreen(challengeId: int.parse(id));
+            },
+          ),
+          GoRoute(
+            path: 'create-challenge',
+            name: 'createChallenge',
+            builder: (context, state) => const CreateChallengeScreen(),
+          ),
+
+          // Profile
+          GoRoute(
+            path: 'profile',
+            name: 'profile',
+            builder: (context, state) => const ProfileScreen(),
+          ),
+          GoRoute(
+            path: 'settings',
+            name: 'settings',
+            builder: (context, state) => const SettingsScreen(),
+          ),
+        ],
+      ),
+    ],
+
+    // Redirect logic (check auth state)
+    redirect: (context, state) {
+      // final isAuthenticated = authState.value != null;
+      // final isAuthRoute = state.matchedLocation.startsWith('/login') ||
+      //     state.matchedLocation.startsWith('/register') ||
+      //     state.matchedLocation == '/';
+
+      // if (!isAuthenticated && !isAuthRoute) {
+      //   return AppRoutes.login;
+      // }
+
+      // if (isAuthenticated && isAuthRoute && state.matchedLocation != '/') {
+      //   return AppRoutes.home;
+      // }
+
+      return null; // No redirect
+    },
+
+    errorBuilder: (context, state) => const ErrorScreen(),
+  );
+});
+
+// Placeholder screens (will be implemented later)
+class SplashScreen extends StatelessWidget {
+  const SplashScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      body: Center(child: CircularProgressIndicator()),
+    );
+  }
+}
+
+class LoginScreen extends StatelessWidget {
+  const LoginScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Login')),
+      body: const Center(child: Text('Login Screen - To be implemented')),
+    );
+  }
+}
+
+class RegisterScreen extends StatelessWidget {
+  const RegisterScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Register')),
+      body: const Center(child: Text('Register Screen - To be implemented')),
+    );
+  }
+}
+
+class HomeScreen extends StatelessWidget {
+  const HomeScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Home')),
+      body: const Center(child: Text('Home Screen - To be implemented')),
+    );
+  }
+}
+
+class CreateStakeScreen extends StatelessWidget {
+  const CreateStakeScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Create Stake')),
+      body: const Center(child: Text('Create Stake Screen - To be implemented')),
+    );
+  }
+}
+
+class StakeDetailScreen extends StatelessWidget {
+  final int stakeId;
+  const StakeDetailScreen({super.key, required this.stakeId});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Stake Detail')),
+      body: Center(child: Text('Stake Detail Screen for ID: $stakeId')),
+    );
+  }
+}
+
+class ChallengesScreen extends StatelessWidget {
+  const ChallengesScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Challenges')),
+      body: const Center(child: Text('Challenges Screen - To be implemented')),
+    );
+  }
+}
+
+class ChallengeDetailScreen extends StatelessWidget {
+  final int challengeId;
+  const ChallengeDetailScreen({super.key, required this.challengeId});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Challenge Detail')),
+      body: Center(child: Text('Challenge Detail Screen for ID: $challengeId')),
+    );
+  }
+}
+
+class CreateChallengeScreen extends StatelessWidget {
+  const CreateChallengeScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Create Challenge')),
+      body: const Center(child: Text('Create Challenge Screen - To be implemented')),
+    );
+  }
+}
+
+class ProfileScreen extends StatelessWidget {
+  const ProfileScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Profile')),
+      body: const Center(child: Text('Profile Screen - To be implemented')),
+    );
+  }
+}
+
+class SettingsScreen extends StatelessWidget {
+  const SettingsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Settings')),
+      body: const Center(child: Text('Settings Screen - To be implemented')),
+    );
+  }
+}
+
+class ErrorScreen extends StatelessWidget {
+  const ErrorScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Error')),
+      body: const Center(child: Text('Page not found')),
+    );
+  }
+}
