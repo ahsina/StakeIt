@@ -3,6 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../shared/models/stake_model.dart';
 import '../../../core/router/app_router.dart';
+import '../../../core/theme/app_constants.dart';
+import '../../../shared/widgets/custom_text_field.dart';
+import '../../../shared/widgets/custom_button.dart';
+import '../../../shared/widgets/info_card.dart';
+import '../../../shared/utils/validators.dart';
+import '../../../shared/utils/error_mapper.dart';
+import '../../../shared/utils/date_formatter.dart';
 import '../data/providers/stake_provider.dart';
 
 class CreateStakeScreen extends ConsumerStatefulWidget {
@@ -114,8 +121,8 @@ class _CreateStakeScreenState extends ConsumerState<CreateStakeScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(e.toString().replaceAll('Exception: ', '')),
-          backgroundColor: Colors.red,
+          content: Text(ErrorMapper.mapStakeError(e)),
+          backgroundColor: AppColors.error,
         ),
       );
     } finally {
@@ -141,33 +148,21 @@ class _CreateStakeScreenState extends ConsumerState<CreateStakeScreen> {
           padding: const EdgeInsets.all(16),
           children: [
             // Title
-            TextFormField(
+            CustomTextField(
+              label: 'Titre',
+              hint: 'Ex: Aller à la salle 3 fois cette semaine',
               controller: _titleController,
-              decoration: const InputDecoration(
-                labelText: 'Titre *',
-                hintText: 'Ex: Aller à la salle 3 fois cette semaine',
-                prefixIcon: Icon(Icons.title),
-              ),
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Veuillez entrer un titre';
-                }
-                if (value.length < 3) {
-                  return 'Le titre doit contenir au moins 3 caractères';
-                }
-                return null;
-              },
+              prefixIcon: const Icon(Icons.title),
+              validator: (value) => Validators.validateMinLength(value, 3, fieldName: 'Le titre'),
             ),
             const SizedBox(height: 16),
 
             // Description
-            TextFormField(
+            CustomTextField(
+              label: 'Description (optionnel)',
+              hint: 'Détails supplémentaires...',
               controller: _descriptionController,
-              decoration: const InputDecoration(
-                labelText: 'Description (optionnel)',
-                hintText: 'Détails supplémentaires...',
-                prefixIcon: Icon(Icons.description),
-              ),
+              prefixIcon: const Icon(Icons.description),
               maxLines: 3,
             ),
             const SizedBox(height: 16),
@@ -194,27 +189,11 @@ class _CreateStakeScreenState extends ConsumerState<CreateStakeScreen> {
             const SizedBox(height: 16),
 
             // Amount
-            TextFormField(
+            CurrencyTextField(
+              label: 'Montant (EUR)',
+              hint: '20.00',
               controller: _amountController,
-              decoration: const InputDecoration(
-                labelText: 'Montant (EUR) *',
-                hintText: '20.00',
-                prefixIcon: Icon(Icons.euro),
-              ),
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Veuillez entrer un montant';
-                }
-                final amount = double.tryParse(value);
-                if (amount == null) {
-                  return 'Montant invalide';
-                }
-                if (amount < 5.0 || amount > 500.0) {
-                  return 'Le montant doit être entre 5€ et 500€';
-                }
-                return null;
-              },
+              validator: (value) => Validators.validateAmount(value, min: 5.0, max: 500.0),
             ),
             const SizedBox(height: 16),
 
@@ -229,34 +208,23 @@ class _CreateStakeScreenState extends ConsumerState<CreateStakeScreen> {
                 child: Text(
                   _endDate == null
                       ? 'Sélectionnez la date et heure de fin'
-                      : '${_endDate!.day}/${_endDate!.month}/${_endDate!.year} à ${_endDate!.hour}:${_endDate!.minute.toString().padLeft(2, '0')}',
+                      : DateFormatter.formatLongDateTime(_endDate!),
                   style: _endDate == null
-                      ? TextStyle(color: Colors.grey[600])
-                      : null,
+                      ? TextStyle(color: AppColors.textSecondary)
+                      : AppTextStyles.bodyMedium,
                 ),
               ),
             ),
             const SizedBox(height: 16),
 
             // Required Count
-            TextFormField(
+            CustomTextField(
+              label: 'Nombre de fois requis',
+              hint: '3',
               controller: _requiredCountController,
-              decoration: const InputDecoration(
-                labelText: 'Nombre de fois requis *',
-                hintText: '3',
-                prefixIcon: Icon(Icons.numbers),
-              ),
+              prefixIcon: const Icon(Icons.numbers),
               keyboardType: TextInputType.number,
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Veuillez entrer un nombre';
-                }
-                final count = int.tryParse(value);
-                if (count == null || count < 1) {
-                  return 'Le nombre doit être au moins 1';
-                }
-                return null;
-              },
+              validator: Validators.validatePositiveNumber,
             ),
             const SizedBox(height: 16),
 
@@ -319,58 +287,24 @@ class _CreateStakeScreenState extends ConsumerState<CreateStakeScreen> {
             const SizedBox(height: 24),
 
             // Info Card
-            Card(
-              color: Theme.of(context).primaryColor.withOpacity(0.1),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.info_outline,
-                          color: Theme.of(context).primaryColor,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Informations importantes',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                color: Theme.of(context).primaryColor,
-                              ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      '• Le montant sera pré-autorisé sur votre carte\n'
-                      '• Il sera capturé uniquement en cas d\'échec\n'
-                      '• Commission de 10% sur les échecs\n'
-                      '• Vous pouvez annuler dans les 2h après création',
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                  ],
-                ),
-              ),
+            WarningCard(
+              message: '• Le montant sera pré-autorisé sur votre carte\n'
+                  '• Il sera capturé uniquement en cas d\'échec\n'
+                  '• Commission de 10% sur les échecs\n'
+                  '• Vous pouvez annuler dans les 2h après création',
+              icon: Icons.info_outline,
+              color: AppColors.primary,
             ),
             const SizedBox(height: 24),
 
             // Create Button
-            ElevatedButton(
-              onPressed: _isLoading ? null : _handleCreateStake,
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-              ),
-              child: _isLoading
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
-                    )
-                  : const Text('Créer le Stake'),
+            CustomButton(
+              text: 'Créer le Stake',
+              onPressed: _handleCreateStake,
+              isLoading: _isLoading,
+              type: ButtonType.primary,
+              size: ButtonSize.large,
+              isFullWidth: true,
             ),
             const SizedBox(height: 16),
           ],

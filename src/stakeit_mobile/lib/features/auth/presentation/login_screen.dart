@@ -2,7 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/router/app_router.dart';
+import '../../../core/theme/app_constants.dart';
 import '../../../shared/models/user_model.dart';
+import '../../../shared/widgets/custom_text_field.dart';
+import '../../../shared/widgets/custom_button.dart';
+import '../../../shared/utils/validators.dart';
+import '../../../shared/utils/error_mapper.dart';
 import '../data/providers/auth_provider.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -50,8 +55,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(e.toString().replaceAll('Exception: ', '')),
-          backgroundColor: Colors.red,
+          content: Text(ErrorMapper.mapAuthError(e)),
+          backgroundColor: AppColors.error,
         ),
       );
     } finally {
@@ -79,103 +84,82 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     width: 100,
                     height: 100,
                     decoration: BoxDecoration(
-                      color: Theme.of(context).primaryColor,
-                      borderRadius: BorderRadius.circular(20),
+                      color: AppColors.primary,
+                      borderRadius: BorderRadius.circular(AppSizes.radiusXL),
                     ),
                     child: const Icon(
                       Icons.emoji_events,
-                      size: 56,
+                      size: AppSizes.iconXXL,
                       color: Colors.white,
                     ),
                   ),
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: AppSizes.paddingXXL),
                 // Title
                 Text(
                   'Bienvenue !',
-                  style: Theme.of(context).textTheme.displayMedium,
+                  style: AppTextStyles.displayLarge,
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: AppSizes.paddingS),
                 Text(
                   'Connectez-vous pour continuer',
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: Colors.grey[600],
-                      ),
+                  style: AppTextStyles.bodyLarge.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 48),
                 // Email Field
-                TextFormField(
+                CustomTextField(
+                  label: 'Email',
+                  hint: 'votre@email.com',
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(
-                    labelText: 'Email',
-                    hintText: 'votre@email.com',
-                    prefixIcon: Icon(Icons.email_outlined),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Veuillez entrer votre email';
-                    }
-                    if (!value.contains('@')) {
-                      return 'Email invalide';
-                    }
-                    return null;
-                  },
+                  prefixIcon: const Icon(Icons.email_outlined),
+                  validator: Validators.validateEmail,
                 ),
                 const SizedBox(height: 16),
                 // Password Field
-                TextFormField(
+                CustomTextField(
+                  label: 'Mot de passe',
+                  hint: '••••••••',
                   controller: _passwordController,
                   obscureText: !_isPasswordVisible,
-                  decoration: InputDecoration(
-                    labelText: 'Mot de passe',
-                    hintText: '••••••••',
-                    prefixIcon: const Icon(Icons.lock_outlined),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _isPasswordVisible
-                            ? Icons.visibility_off
-                            : Icons.visibility,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          _isPasswordVisible = !_isPasswordVisible;
-                        });
-                      },
+                  prefixIcon: const Icon(Icons.lock_outlined),
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _isPasswordVisible
+                          ? Icons.visibility_off
+                          : Icons.visibility,
                     ),
+                    onPressed: () {
+                      setState(() {
+                        _isPasswordVisible = !_isPasswordVisible;
+                      });
+                    },
                   ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Veuillez entrer votre mot de passe';
-                    }
-                    return null;
-                  },
+                  validator: Validators.validateRequired,
                 ),
                 const SizedBox(height: 24),
                 // Login Button
-                ElevatedButton(
-                  onPressed: _isLoading ? null : _handleLogin,
-                  child: _isLoading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor:
-                                AlwaysStoppedAnimation<Color>(Colors.white),
-                          ),
-                        )
-                      : const Text('Se connecter'),
+                CustomButton(
+                  text: 'Se connecter',
+                  onPressed: _handleLogin,
+                  isLoading: _isLoading,
+                  type: ButtonType.primary,
+                  size: ButtonSize.large,
+                  isFullWidth: true,
                 ),
                 const SizedBox(height: 16),
                 // Forgot Password
-                TextButton(
+                CustomButton(
+                  text: 'Mot de passe oublié ?',
                   onPressed: () {
                     // TODO: Implement forgot password
                   },
-                  child: const Text('Mot de passe oublié ?'),
+                  type: ButtonType.text,
+                  isFullWidth: true,
                 ),
                 const SizedBox(height: 32),
                 // Divider
@@ -183,22 +167,27 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   children: [
                     const Expanded(child: Divider()),
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      padding: const EdgeInsets.symmetric(horizontal: AppSizes.paddingM),
                       child: Text(
                         'OU',
-                        style: TextStyle(color: Colors.grey[600]),
+                        style: AppTextStyles.labelMedium.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
                       ),
                     ),
                     const Expanded(child: Divider()),
                   ],
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: AppSizes.paddingXXL),
                 // Register Button
-                OutlinedButton(
+                CustomButton(
+                  text: 'Créer un compte',
                   onPressed: () {
                     context.go(AppRoutes.register);
                   },
-                  child: const Text('Créer un compte'),
+                  type: ButtonType.outlined,
+                  size: ButtonSize.large,
+                  isFullWidth: true,
                 ),
               ],
             ),
