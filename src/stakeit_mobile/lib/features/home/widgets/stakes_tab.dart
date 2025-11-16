@@ -64,7 +64,7 @@ class _StakesTabState extends ConsumerState<StakesTab> with SingleTickerProvider
           IconButton(
             icon: const Icon(Icons.notifications_outlined),
             onPressed: () {
-              // TODO: Navigate to notifications
+              context.go('${AppRoutes.home}/notifications');
             },
           ),
         ],

@@ -319,7 +319,7 @@ class ProfileTab extends ConsumerWidget {
               title: 'Statistiques détaillées',
               subtitle: 'Voir vos progrès',
               onTap: () {
-                // TODO: Navigate to detailed stats
+                context.go('${AppRoutes.home}/stats');
               },
             ),
             _MenuItem(
@@ -327,7 +327,7 @@ class ProfileTab extends ConsumerWidget {
               title: 'Historique',
               subtitle: 'Transactions et activités',
               onTap: () {
-                // TODO: Navigate to history
+                context.go('${AppRoutes.home}/history');
               },
             ),
             const Divider(height: 32),
@@ -336,7 +336,7 @@ class ProfileTab extends ConsumerWidget {
               title: 'Aide & Support',
               subtitle: 'FAQ et contact',
               onTap: () {
-                // TODO: Navigate to support
+                context.go('${AppRoutes.home}/support');
               },
             ),
             _MenuItem(
@@ -344,7 +344,7 @@ class ProfileTab extends ConsumerWidget {
               title: 'À propos',
               subtitle: 'Version 1.0.0',
               onTap: () {
-                // TODO: Navigate to about
+                context.go('${AppRoutes.home}/about');
               },
             ),
             const Divider(height: 32),
