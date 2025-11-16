@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/splash/presentation/splash_screen.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/register_screen.dart';
+import '../../features/home/presentation/home_screen.dart';
 
 // Route paths
 class AppRoutes {
@@ -126,18 +127,6 @@ final routerProvider = Provider<GoRouter>((ref) {
 });
 
 // Placeholder screens (to be implemented)
-class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Home')),
-      body: const Center(child: Text('Home Screen - To be implemented')),
-    );
-  }
-}
-
 class CreateStakeScreen extends StatelessWidget {
   const CreateStakeScreen({super.key});
 
