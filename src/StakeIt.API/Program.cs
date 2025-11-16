@@ -157,9 +157,11 @@ builder.Services.AddScoped<IStakeService, StakeService>();
 // Payment Services
 builder.Services.AddScoped<IPaymentService, PaymentService>();
 
+// Geofence Services
+builder.Services.AddScoped<IGeofenceService, GeofenceService>();
+
 // TODO: Add more application services here as we build them
 // builder.Services.AddScoped<IChallengeService, ChallengeService>();
-// builder.Services.AddScoped<IGeoLocationService, GeoLocationService>();
 
 // ========================================
 // BUILD APP
