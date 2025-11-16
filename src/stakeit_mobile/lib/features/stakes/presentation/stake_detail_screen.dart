@@ -3,6 +3,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../shared/models/stake_model.dart';
 import '../../../core/router/app_router.dart';
+import '../../../core/theme/app_constants.dart';
+import '../../../shared/widgets/status_badge.dart';
+import '../../../shared/widgets/progress_bar.dart';
+import '../../../shared/widgets/loading_indicator.dart';
+import '../../../shared/widgets/info_card.dart';
+import '../../../shared/widgets/confirmation_dialog.dart';
+import '../../../shared/utils/date_formatter.dart';
+import '../../../shared/utils/currency_formatter.dart';
+import '../../../shared/utils/error_mapper.dart';
 import '../data/providers/stake_provider.dart';
 
 class StakeDetailScreen extends ConsumerWidget {
@@ -26,26 +35,10 @@ class StakeDetailScreen extends ConsumerWidget {
       ),
       body: stakeAsync.when(
         data: (stake) => _buildStakeDetail(context, ref, stake),
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stack) => Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.error_outline, size: 64, color: Colors.red),
-              const SizedBox(height: 16),
-              Text(
-                'Erreur de chargement',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: 8),
-              Text(error.toString()),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () => ref.refresh(stakeDetailProvider(stakeId)),
-                child: const Text('Réessayer'),
-              ),
-            ],
-          ),
+        loading: () => const LoadingIndicator(message: 'Chargement du stake...'),
+        error: (error, stack) => ErrorDisplay(
+          message: ErrorMapper.mapStakeError(error),
+          onRetry: () => ref.refresh(stakeDetailProvider(stakeId)),
         ),
       ),
       floatingActionButton: stakeAsync.whenData((stake) {
@@ -71,8 +64,8 @@ class StakeDetailScreen extends ConsumerWidget {
         padding: const EdgeInsets.all(16),
         children: [
           // Status Badge
-          _buildStatusBadge(context, stake),
-          const SizedBox(height: 16),
+          StatusBadge.fromStakeStatus(stake.status, isLarge: true),
+          const SizedBox(height: AppSizes.paddingM),
 
           // Title and Description Card
           Card(
@@ -88,34 +81,34 @@ class StakeDetailScreen extends ConsumerWidget {
                       Expanded(
                         child: Text(
                           stake.title,
-                          style: Theme.of(context).textTheme.headlineSmall,
+                          style: AppTextStyles.headingMedium,
                         ),
                       ),
                     ],
                   ),
                   if (stake.description != null) ...[
-                    const SizedBox(height: 12),
+                    const SizedBox(height: AppSizes.paddingS),
                     Text(
                       stake.description!,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Colors.grey[600],
-                          ),
+                      style: AppTextStyles.bodyMedium.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
                     ),
                   ],
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AppSizes.paddingM),
                   const Divider(),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AppSizes.paddingM),
                   // Amount
                   Row(
                     children: [
-                      const Icon(Icons.euro, color: Colors.green),
-                      const SizedBox(width: 8),
+                      const Icon(Icons.euro, color: AppColors.secondary),
+                      const SizedBox(width: AppSizes.paddingS),
                       Text(
-                        '${stake.amountEUR.toStringAsFixed(2)} EUR',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              color: Colors.green,
-                              fontWeight: FontWeight.bold,
-                            ),
+                        CurrencyFormatter.format(stake.amountEUR),
+                        style: AppTextStyles.headingMedium.copyWith(
+                          color: AppColors.secondary,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ],
                   ),
@@ -128,36 +121,20 @@ class StakeDetailScreen extends ConsumerWidget {
           // Progress Card
           Card(
             child: Padding(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(AppSizes.paddingL),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     'Progression',
-                    style: Theme.of(context).textTheme.titleLarge,
+                    style: AppTextStyles.headingMedium,
                   ),
-                  const SizedBox(height: 16),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        '${stake.currentCount} / ${stake.requiredCount}',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      Text(
-                        '${stake.progressPercentage.toStringAsFixed(0)}%',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              color: Theme.of(context).primaryColor,
-                            ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  LinearProgressIndicator(
-                    value: stake.progressPercentage / 100,
-                    backgroundColor: Colors.grey[300],
-                    minHeight: 12,
-                    borderRadius: BorderRadius.circular(6),
+                  const SizedBox(height: AppSizes.paddingM),
+                  AnimatedProgressBar(
+                    progress: stake.progressPercentage / 100,
+                    height: 12,
+                    showPercentage: true,
+                    label: '${stake.currentCount} / ${stake.requiredCount} preuves',
                   ),
                 ],
               ),
@@ -169,31 +146,31 @@ class StakeDetailScreen extends ConsumerWidget {
           if (stake.isActive && !stake.isExpired)
             Card(
               child: Padding(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(AppSizes.paddingL),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.timer, color: Theme.of(context).primaryColor),
-                        const SizedBox(width: 8),
+                        const Icon(Icons.timer, color: AppColors.primary),
+                        const SizedBox(width: AppSizes.paddingS),
                         Text(
                           'Temps restant',
-                          style: Theme.of(context).textTheme.titleMedium,
+                          style: AppTextStyles.headingSmall,
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: AppSizes.paddingS),
                     Text(
-                      _formatDuration(stake.timeRemaining),
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                            color: Theme.of(context).primaryColor,
-                          ),
+                      DateFormatter.formatTimeRemaining(stake.endDate),
+                      style: AppTextStyles.headingMedium.copyWith(
+                        color: AppColors.primary,
+                      ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: AppSizes.paddingXS),
                     Text(
-                      'Se termine le ${_formatDate(stake.endDate)}',
-                      style: Theme.of(context).textTheme.bodySmall,
+                      'Se termine le ${DateFormatter.formatLongDate(stake.endDate)}',
+                      style: AppTextStyles.bodySmall,
                     ),
                   ],
                 ),
@@ -203,15 +180,15 @@ class StakeDetailScreen extends ConsumerWidget {
           // Details Card
           Card(
             child: Padding(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(AppSizes.paddingL),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     'Détails',
-                    style: Theme.of(context).textTheme.titleLarge,
+                    style: AppTextStyles.headingMedium,
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AppSizes.paddingM),
                   _buildDetailRow(
                     context,
                     'Catégorie',
@@ -236,7 +213,7 @@ class StakeDetailScreen extends ConsumerWidget {
                   _buildDetailRow(
                     context,
                     'Créé le',
-                    _formatDate(stake.createdAt),
+                    DateFormatter.formatLongDate(stake.createdAt),
                     Icons.calendar_today,
                   ),
                 ],
@@ -253,64 +230,6 @@ class StakeDetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildStatusBadge(BuildContext context, StakeModel stake) {
-    Color color;
-    String text;
-    IconData icon;
-
-    switch (stake.status) {
-      case StakeStatus.active:
-        color = Colors.blue;
-        text = 'Actif';
-        icon = Icons.play_circle;
-        break;
-      case StakeStatus.completed:
-        color = Colors.green;
-        text = 'Complété';
-        icon = Icons.check_circle;
-        break;
-      case StakeStatus.failed:
-        color = Colors.red;
-        text = 'Échoué';
-        icon = Icons.cancel;
-        break;
-      case StakeStatus.cancelled:
-        color = Colors.grey;
-        text = 'Annulé';
-        icon = Icons.block;
-        break;
-      case StakeStatus.pending:
-        color = Colors.orange;
-        text = 'En attente';
-        icon = Icons.hourglass_empty;
-        break;
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color, width: 2),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: color),
-          const SizedBox(width: 8),
-          Text(
-            text,
-            style: TextStyle(
-              color: color,
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildDetailRow(
     BuildContext context,
     String label,
@@ -319,22 +238,22 @@ class StakeDetailScreen extends ConsumerWidget {
   ) {
     return Row(
       children: [
-        Icon(icon, size: 20, color: Colors.grey[600]),
-        const SizedBox(width: 12),
+        Icon(icon, size: AppSizes.iconM, color: AppColors.textSecondary),
+        const SizedBox(width: AppSizes.paddingS),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 label,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Colors.grey[600],
-                    ),
+                style: AppTextStyles.bodySmall.copyWith(
+                  color: AppColors.textSecondary,
+                ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: AppSizes.paddingXS),
               Text(
                 value,
-                style: Theme.of(context).textTheme.bodyLarge,
+                style: AppTextStyles.bodyLarge,
               ),
             ],
           ),
@@ -348,23 +267,22 @@ class StakeDetailScreen extends ConsumerWidget {
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(AppSizes.paddingL),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               'Preuves soumises',
-              style: Theme.of(context).textTheme.titleLarge,
+              style: AppTextStyles.headingMedium,
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: AppSizes.paddingM),
             proofsAsync.when(
               data: (proofs) {
                 if (proofs.isEmpty) {
-                  return const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(24),
-                      child: Text('Aucune preuve soumise'),
-                    ),
+                  return const EmptyState(
+                    icon: Icons.assignment,
+                    title: 'Aucune preuve',
+                    subtitle: 'Vous n\'avez pas encore soumis de preuve',
                   );
                 }
                 return ListView.separated(
@@ -378,8 +296,11 @@ class StakeDetailScreen extends ConsumerWidget {
                   },
                 );
               },
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (_, __) => const Text('Erreur de chargement des preuves'),
+              loading: () => const LoadingIndicator(message: 'Chargement des preuves...'),
+              error: (error, __) => ErrorDisplay(
+                message: ErrorMapper.mapError(error),
+                onRetry: () => ref.refresh(stakeProofsProvider(stakeId)),
+              ),
             ),
           ],
         ),
@@ -393,15 +314,15 @@ class StakeDetailScreen extends ConsumerWidget {
 
     switch (proof.validationStatus) {
       case 'Approved':
-        statusColor = Colors.green;
+        statusColor = AppColors.stakeCompleted;
         statusIcon = Icons.check_circle;
         break;
       case 'Rejected':
-        statusColor = Colors.red;
+        statusColor = AppColors.stakeFailed;
         statusIcon = Icons.cancel;
         break;
       default:
-        statusColor = Colors.orange;
+        statusColor = AppColors.warning;
         statusIcon = Icons.hourglass_empty;
     }
 
@@ -410,17 +331,17 @@ class StakeDetailScreen extends ConsumerWidget {
       children: [
         Row(
           children: [
-            Icon(statusIcon, color: statusColor, size: 20),
-            const SizedBox(width: 8),
+            Icon(statusIcon, color: statusColor, size: AppSizes.iconM),
+            const SizedBox(width: AppSizes.paddingS),
             Expanded(
               child: Text(
-                _formatDate(proof.submittedAt),
-                style: Theme.of(context).textTheme.bodyMedium,
+                DateFormatter.formatContextualDate(proof.submittedAt),
+                style: AppTextStyles.bodyMedium,
               ),
             ),
             Text(
               proof.validationStatus,
-              style: TextStyle(
+              style: AppTextStyles.labelMedium.copyWith(
                 color: statusColor,
                 fontWeight: FontWeight.bold,
               ),
@@ -428,23 +349,23 @@ class StakeDetailScreen extends ConsumerWidget {
           ],
         ),
         if (proof.notes != null) ...[
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSizes.paddingS),
           Text(
             proof.notes!,
-            style: Theme.of(context).textTheme.bodySmall,
+            style: AppTextStyles.bodySmall,
           ),
         ],
         if (proof.rejectionReason != null) ...[
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSizes.paddingS),
           Container(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(AppSizes.paddingS),
             decoration: BoxDecoration(
-              color: Colors.red.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(4),
+              color: AppColors.error.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(AppSizes.radiusS),
             ),
             child: Text(
               'Raison: ${proof.rejectionReason}',
-              style: const TextStyle(color: Colors.red),
+              style: AppTextStyles.bodySmall.copyWith(color: AppColors.error),
             ),
           ),
         ],
@@ -523,20 +444,6 @@ class StakeDetailScreen extends ConsumerWidget {
     }
   }
 
-  String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year} à ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
-  }
-
-  String _formatDuration(Duration duration) {
-    if (duration.inDays > 0) {
-      return '${duration.inDays} jours ${duration.inHours % 24}h';
-    } else if (duration.inHours > 0) {
-      return '${duration.inHours}h ${duration.inMinutes % 60}min';
-    } else {
-      return '${duration.inMinutes}min';
-    }
-  }
-
   void _showOptionsMenu(BuildContext context, WidgetRef ref) {
     showModalBottomSheet(
       context: context,
@@ -559,26 +466,13 @@ class StakeDetailScreen extends ConsumerWidget {
   }
 
   Future<void> _handleCancelStake(BuildContext context, WidgetRef ref) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await ConfirmationDialog.show(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Annuler le stake'),
-        content: const Text(
-          'Êtes-vous sûr de vouloir annuler ce stake ? '
-          'Cette action est irréversible.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Non'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Oui, annuler'),
-          ),
-        ],
-      ),
+      title: 'Annuler le stake',
+      message: 'Êtes-vous sûr de vouloir annuler ce stake ? Cette action est irréversible.',
+      confirmText: 'Oui, annuler',
+      isDangerous: true,
+      icon: Icons.cancel,
     );
 
     if (confirmed == true && context.mounted) {
@@ -587,9 +481,9 @@ class StakeDetailScreen extends ConsumerWidget {
 
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Stake annulé avec succès'),
-              backgroundColor: Colors.green,
+            SnackBar(
+              content: const Text('Stake annulé avec succès'),
+              backgroundColor: AppColors.success,
             ),
           );
           context.go(AppRoutes.home);
@@ -598,8 +492,8 @@ class StakeDetailScreen extends ConsumerWidget {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(e.toString().replaceAll('Exception: ', '')),
-              backgroundColor: Colors.red,
+              content: Text(ErrorMapper.mapStakeError(e)),
+              backgroundColor: AppColors.error,
             ),
           );
         }
