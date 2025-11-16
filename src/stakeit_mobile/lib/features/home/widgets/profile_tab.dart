@@ -330,7 +330,7 @@ class ProfileTab extends ConsumerWidget {
               title: 'Portefeuille',
               subtitle: 'Gérer vos paiements',
               onTap: () {
-                // TODO: Navigate to wallet
+                context.go('${AppRoutes.home}/wallet');
               },
             ),
             _MenuItem(

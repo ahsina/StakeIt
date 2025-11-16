@@ -9,6 +9,7 @@ import '../../features/stakes/presentation/create_stake_screen.dart';
 import '../../features/stakes/presentation/stake_detail_screen.dart';
 import '../../features/challenges/presentation/create_challenge_screen.dart';
 import '../../features/challenges/presentation/challenge_detail_screen.dart';
+import '../../features/payment/presentation/wallet_screen.dart';
 
 // Route paths
 class AppRoutes {
@@ -103,6 +104,13 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: 'settings',
             name: 'settings',
             builder: (context, state) => const SettingsScreen(),
+          ),
+
+          // Wallet
+          GoRoute(
+            path: 'wallet',
+            name: 'wallet',
+            builder: (context, state) => const WalletScreen(),
           ),
         ],
       ),
