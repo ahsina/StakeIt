@@ -4,6 +4,13 @@ import 'package:go_router/go_router.dart';
 import '../../../shared/models/challenge_model.dart';
 import '../../../shared/models/stake_model.dart';
 import '../../../core/router/app_router.dart';
+import '../../../core/theme/app_constants.dart';
+import '../../../shared/widgets/custom_text_field.dart';
+import '../../../shared/widgets/custom_button.dart';
+import '../../../shared/widgets/info_card.dart';
+import '../../../shared/utils/validators.dart';
+import '../../../shared/utils/error_mapper.dart';
+import '../../../shared/utils/date_formatter.dart';
 import '../data/providers/challenge_provider.dart';
 
 class CreateChallengeScreen extends ConsumerStatefulWidget {
@@ -110,9 +117,9 @@ class _CreateChallengeScreenState extends ConsumerState<CreateChallengeScreen> {
 
     if (_startDate == null || _endDate == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Veuillez sélectionner les dates de début et de fin'),
-          backgroundColor: Colors.red,
+        SnackBar(
+          content: const Text('Veuillez sélectionner les dates de début et de fin'),
+          backgroundColor: AppColors.error,
         ),
       );
       return;
@@ -144,9 +151,9 @@ class _CreateChallengeScreenState extends ConsumerState<CreateChallengeScreen> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Challenge créé avec succès !'),
-          backgroundColor: Colors.green,
+        SnackBar(
+          content: const Text('Challenge créé avec succès !'),
+          backgroundColor: AppColors.success,
         ),
       );
 
@@ -156,8 +163,8 @@ class _CreateChallengeScreenState extends ConsumerState<CreateChallengeScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(e.toString().replaceAll('Exception: ', '')),
-          backgroundColor: Colors.red,
+          content: Text(ErrorMapper.mapChallengeError(e)),
+          backgroundColor: AppColors.error,
         ),
       );
     } finally {
@@ -183,33 +190,21 @@ class _CreateChallengeScreenState extends ConsumerState<CreateChallengeScreen> {
           padding: const EdgeInsets.all(16),
           children: [
             // Title
-            TextFormField(
+            CustomTextField(
+              label: 'Titre',
+              hint: 'Ex: Course de 10km en 1 mois',
               controller: _titleController,
-              decoration: const InputDecoration(
-                labelText: 'Titre *',
-                hintText: 'Ex: Course de 10km en 1 mois',
-                prefixIcon: Icon(Icons.title),
-              ),
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Veuillez entrer un titre';
-                }
-                if (value.length < 3) {
-                  return 'Le titre doit contenir au moins 3 caractères';
-                }
-                return null;
-              },
+              prefixIcon: const Icon(Icons.title),
+              validator: (value) => Validators.validateMinLength(value, 3, fieldName: 'Le titre'),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: AppSizes.paddingM),
 
             // Description
-            TextFormField(
+            CustomTextField(
+              label: 'Description (optionnel)',
+              hint: 'Détails sur le challenge...',
               controller: _descriptionController,
-              decoration: const InputDecoration(
-                labelText: 'Description (optionnel)',
-                hintText: 'Détails sur le challenge...',
-                prefixIcon: Icon(Icons.description),
-              ),
+              prefixIcon: const Icon(Icons.description),
               maxLines: 3,
             ),
             const SizedBox(height: 16),
@@ -265,38 +260,20 @@ class _CreateChallengeScreenState extends ConsumerState<CreateChallengeScreen> {
             const SizedBox(height: 16),
 
             // Entry Fee
-            TextFormField(
+            CurrencyTextField(
+              label: 'Frais d\'entrée (EUR)',
+              hint: '10.00',
               controller: _entryFeeController,
-              decoration: const InputDecoration(
-                labelText: 'Frais d\'entrée (EUR) *',
-                hintText: '10.00',
-                prefixIcon: Icon(Icons.euro),
-              ),
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Veuillez entrer un montant';
-                }
-                final amount = double.tryParse(value);
-                if (amount == null) {
-                  return 'Montant invalide';
-                }
-                if (amount < 5.0 || amount > 500.0) {
-                  return 'Le montant doit être entre 5€ et 500€';
-                }
-                return null;
-              },
+              validator: (value) => Validators.validateAmount(value, min: 5.0, max: 500.0),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: AppSizes.paddingM),
 
             // Max Participants
-            TextFormField(
+            CustomTextField(
+              label: 'Nombre maximum de participants',
+              hint: '10',
               controller: _maxParticipantsController,
-              decoration: const InputDecoration(
-                labelText: 'Nombre maximum de participants *',
-                hintText: '10',
-                prefixIcon: Icon(Icons.people),
-              ),
+              prefixIcon: const Icon(Icons.people),
               keyboardType: TextInputType.number,
               validator: (value) {
                 if (value == null || value.isEmpty) {
@@ -309,27 +286,16 @@ class _CreateChallengeScreenState extends ConsumerState<CreateChallengeScreen> {
                 return null;
               },
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: AppSizes.paddingM),
 
             // Target Count
-            TextFormField(
+            CustomTextField(
+              label: 'Objectif à atteindre',
+              hint: '10',
               controller: _targetCountController,
-              decoration: const InputDecoration(
-                labelText: 'Objectif à atteindre *',
-                hintText: '10',
-                prefixIcon: Icon(Icons.flag),
-              ),
+              prefixIcon: const Icon(Icons.flag),
               keyboardType: TextInputType.number,
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Veuillez entrer un objectif';
-                }
-                final count = int.tryParse(value);
-                if (count == null || count < 1) {
-                  return 'L\'objectif doit être au moins 1';
-                }
-                return null;
-              },
+              validator: Validators.validatePositiveNumber,
             ),
             const SizedBox(height: 16),
 
@@ -344,14 +310,14 @@ class _CreateChallengeScreenState extends ConsumerState<CreateChallengeScreen> {
                 child: Text(
                   _startDate == null
                       ? 'Sélectionnez la date et heure de début'
-                      : '${_startDate!.day}/${_startDate!.month}/${_startDate!.year} à ${_startDate!.hour}:${_startDate!.minute.toString().padLeft(2, '0')}',
+                      : DateFormatter.formatLongDateTime(_startDate!),
                   style: _startDate == null
-                      ? TextStyle(color: Colors.grey[600])
-                      : null,
+                      ? TextStyle(color: AppColors.textSecondary)
+                      : AppTextStyles.bodyMedium,
                 ),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: AppSizes.paddingM),
 
             // End Date
             InkWell(
@@ -364,9 +330,10 @@ class _CreateChallengeScreenState extends ConsumerState<CreateChallengeScreen> {
                 child: Text(
                   _endDate == null
                       ? 'Sélectionnez la date et heure de fin'
-                      : '${_endDate!.day}/${_endDate!.month}/${_endDate!.year} à ${_endDate!.hour}:${_endDate!.minute.toString().padLeft(2, '0')}',
-                  style:
-                      _endDate == null ? TextStyle(color: Colors.grey[600]) : null,
+                      : DateFormatter.formatLongDateTime(_endDate!),
+                  style: _endDate == null
+                      ? TextStyle(color: AppColors.textSecondary)
+                      : AppTextStyles.bodyMedium,
                 ),
               ),
             ),
@@ -423,60 +390,25 @@ class _CreateChallengeScreenState extends ConsumerState<CreateChallengeScreen> {
             const SizedBox(height: 24),
 
             // Info Card
-            Card(
-              color: Theme.of(context).primaryColor.withOpacity(0.1),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.info_outline,
-                          color: Theme.of(context).primaryColor,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'À propos des challenges',
-                          style:
-                              Theme.of(context).textTheme.titleMedium?.copyWith(
-                                    color: Theme.of(context).primaryColor,
-                                  ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      '• Vous serez automatiquement inscrit comme créateur\n'
-                      '• Les frais d\'entrée sont prélevés à tous les participants\n'
-                      '• La cagnotte totale est distribuée aux gagnants (90%)\n'
-                      '• Commission de 10% sur la cagnotte totale\n'
-                      '• Le challenge peut être annulé avant le début',
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                  ],
-                ),
-              ),
+            WarningCard(
+              message: '• Vous serez automatiquement inscrit comme créateur\n'
+                  '• Les frais d\'entrée sont prélevés à tous les participants\n'
+                  '• La cagnotte totale est distribuée aux gagnants (90%)\n'
+                  '• Commission de 10% sur la cagnotte totale\n'
+                  '• Le challenge peut être annulé avant le début',
+              icon: Icons.info_outline,
+              color: AppColors.primary,
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: AppSizes.paddingXXL),
 
             // Create Button
-            ElevatedButton(
-              onPressed: _isLoading ? null : _handleCreateChallenge,
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-              ),
-              child: _isLoading
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
-                    )
-                  : const Text('Créer le Challenge'),
+            CustomButton(
+              text: 'Créer le Challenge',
+              onPressed: _handleCreateChallenge,
+              isLoading: _isLoading,
+              type: ButtonType.primary,
+              size: ButtonSize.large,
+              isFullWidth: true,
             ),
             const SizedBox(height: 16),
           ],
