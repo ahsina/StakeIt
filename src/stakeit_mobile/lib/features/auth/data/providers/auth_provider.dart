@@ -96,6 +96,15 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  // Forgot password
+  Future<void> forgotPassword(String email) async {
+    try {
+      await _repository.forgotPassword(email);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   // Clear error
   void clearError() {
     state = state.copyWith(error: null);

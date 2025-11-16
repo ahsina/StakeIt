@@ -66,6 +66,84 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
+  void _showForgotPasswordDialog(BuildContext context, WidgetRef ref) {
+    final emailController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Mot de passe oublié'),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Entrez votre adresse email pour recevoir un lien de réinitialisation de mot de passe.',
+                style: TextStyle(fontSize: 14),
+              ),
+              const SizedBox(height: AppSizes.paddingM),
+              CustomTextField(
+                label: 'Email',
+                controller: emailController,
+                keyboardType: TextInputType.emailAddress,
+                validator: Validators.validateEmail,
+                prefixIcon: Icons.email,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Annuler'),
+          ),
+          CustomButton(
+            text: 'Envoyer',
+            onPressed: () async {
+              if (!formKey.currentState!.validate()) {
+                return;
+              }
+
+              try {
+                // Call forgot password API
+                await ref.read(authProvider.notifier).forgotPassword(
+                  emailController.text.trim(),
+                );
+
+                if (context.mounted) {
+                  Navigator.pop(context);
+
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Un email de réinitialisation a été envoyé à votre adresse.',
+                      ),
+                      backgroundColor: AppColors.success,
+                      duration: Duration(seconds: 4),
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(ErrorMapper.mapAuthError(e)),
+                      backgroundColor: AppColors.error,
+                    ),
+                  );
+                }
+              }
+            },
+            type: ButtonType.primary,
+            size: ButtonSize.medium,
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -155,9 +233,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 // Forgot Password
                 CustomButton(
                   text: 'Mot de passe oublié ?',
-                  onPressed: () {
-                    // TODO: Implement forgot password
-                  },
+                  onPressed: () => _showForgotPasswordDialog(context, ref),
                   type: ButtonType.text,
                   isFullWidth: true,
                 ),

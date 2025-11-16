@@ -83,6 +83,18 @@ class AuthRepository {
     return UserModel.fromJson(userData);
   }
 
+  // Forgot password - send reset email
+  Future<void> forgotPassword(String email) async {
+    try {
+      await _dio.post(
+        '${AppConfig.authEndpoint}/forgot-password',
+        data: {'email': email},
+      );
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
   // Private helper to save auth data
   Future<void> _saveAuthData(LoginResponse response) async {
     await _storage.saveAccessToken(response.token);

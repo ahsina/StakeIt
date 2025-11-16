@@ -2,18 +2,26 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:io';
+import 'dart:convert';
+import 'package:dio/dio.dart';
+import 'navigation_service.dart';
+import 'api_client.dart';
 
 // Provider for notification service
 final notificationServiceProvider = Provider<NotificationService>((ref) {
-  return NotificationService();
+  final dio = ref.watch(dioProvider);
+  return NotificationService(dio);
 });
 
 class NotificationService {
+  final Dio _dio;
   final FirebaseMessaging _fcm = FirebaseMessaging.instance;
   final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
 
   bool _initialized = false;
+
+  NotificationService(this._dio);
 
   /// Initialize notification service
   Future<void> initialize() async {
@@ -151,15 +159,28 @@ class NotificationService {
   void _handleMessageOpenedApp(RemoteMessage message) {
     print('Message opened app: ${message.messageId}');
 
-    // TODO: Navigate to appropriate screen based on message data
-    // Example: if message.data['type'] == 'stake', navigate to stake detail
+    // Navigate to appropriate screen based on message data
+    if (message.data.isNotEmpty) {
+      NavigationService.handleNotificationNavigation(message.data);
+    }
   }
 
   /// Handle notification tap
   void _onNotificationTapped(NotificationResponse response) {
     print('Notification tapped: ${response.payload}');
 
-    // TODO: Navigate based on payload
+    // Navigate based on payload
+    if (response.payload != null && response.payload!.isNotEmpty) {
+      try {
+        // Parse payload as JSON
+        final data = json.decode(response.payload!) as Map<String, dynamic>;
+        NavigationService.handleNotificationNavigation(data);
+      } catch (e) {
+        print('Error parsing notification payload: $e');
+        // If parsing fails, just navigate to home
+        NavigationService.navigateToHome();
+      }
+    }
   }
 
   /// Show local notification
@@ -232,8 +253,23 @@ class NotificationService {
 
   /// Send token to backend
   Future<void> sendTokenToBackend(String token) async {
-    // TODO: Implement API call to send token to backend
-    print('Sending token to backend: $token');
+    try {
+      await _dio.post(
+        '/api/notifications/register-device',
+        data: {
+          'fcmToken': token,
+          'platform': Platform.isIOS ? 'ios' : 'android',
+          'deviceInfo': {
+            'platform': Platform.operatingSystem,
+            'version': Platform.operatingSystemVersion,
+          },
+        },
+      );
+      print('Successfully sent FCM token to backend');
+    } catch (e) {
+      print('Error sending FCM token to backend: $e');
+      // Don't throw - this is not critical
+    }
   }
 
   /// Show custom notification

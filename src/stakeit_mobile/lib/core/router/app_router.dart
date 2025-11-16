@@ -10,6 +10,11 @@ import '../../features/stakes/presentation/stake_detail_screen.dart';
 import '../../features/challenges/presentation/create_challenge_screen.dart';
 import '../../features/challenges/presentation/challenge_detail_screen.dart';
 import '../../features/payment/presentation/wallet_screen.dart';
+import '../../features/notifications/presentation/notifications_screen.dart';
+import '../../features/stats/presentation/stats_screen.dart';
+import '../../features/history/presentation/history_screen.dart';
+import '../../features/support/presentation/support_screen.dart';
+import '../../features/about/presentation/about_screen.dart';
 
 // Route paths
 class AppRoutes {
@@ -24,6 +29,11 @@ class AppRoutes {
   static const String createChallenge = '/create-challenge';
   static const String profile = '/profile';
   static const String settings = '/settings';
+  static const String notifications = '/notifications';
+  static const String stats = '/stats';
+  static const String history = '/history';
+  static const String support = '/support';
+  static const String about = '/about';
 }
 
 // Router Provider
@@ -111,6 +121,41 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: 'wallet',
             name: 'wallet',
             builder: (context, state) => const WalletScreen(),
+          ),
+
+          // Notifications
+          GoRoute(
+            path: 'notifications',
+            name: 'notifications',
+            builder: (context, state) => const NotificationsScreen(),
+          ),
+
+          // Stats
+          GoRoute(
+            path: 'stats',
+            name: 'stats',
+            builder: (context, state) => const StatsScreen(),
+          ),
+
+          // History
+          GoRoute(
+            path: 'history',
+            name: 'history',
+            builder: (context, state) => const HistoryScreen(),
+          ),
+
+          // Support
+          GoRoute(
+            path: 'support',
+            name: 'support',
+            builder: (context, state) => const SupportScreen(),
+          ),
+
+          // About
+          GoRoute(
+            path: 'about',
+            name: 'about',
+            builder: (context, state) => const AboutScreen(),
           ),
         ],
       ),

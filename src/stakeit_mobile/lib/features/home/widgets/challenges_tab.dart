@@ -16,6 +16,12 @@ class ChallengesTab extends ConsumerStatefulWidget {
 }
 
 class _ChallengesTabState extends ConsumerState<ChallengesTab> {
+  String _searchQuery = '';
+  StakeCategory? _selectedCategory;
+  ChallengeStatus? _selectedStatus;
+  ChallengeType? _selectedChallengeType;
+  bool _showFilters = false;
+
   @override
   void initState() {
     super.initState();
@@ -26,9 +32,93 @@ class _ChallengesTabState extends ConsumerState<ChallengesTab> {
     });
   }
 
+  List<ChallengeModel> _filterChallenges(List<ChallengeModel> challenges) {
+    var filtered = challenges;
+
+    // Apply search filter
+    if (_searchQuery.isNotEmpty) {
+      filtered = filtered.where((challenge) {
+        return challenge.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+            challenge.description.toLowerCase().contains(_searchQuery.toLowerCase());
+      }).toList();
+    }
+
+    // Apply category filter
+    if (_selectedCategory != null) {
+      filtered = filtered.where((c) => c.category == _selectedCategory).toList();
+    }
+
+    // Apply status filter
+    if (_selectedStatus != null) {
+      filtered = filtered.where((c) => c.status == _selectedStatus).toList();
+    }
+
+    // Apply challenge type filter
+    if (_selectedChallengeType != null) {
+      filtered = filtered.where((c) => c.challengeType == _selectedChallengeType).toList();
+    }
+
+    return filtered;
+  }
+
+  void _showSearchDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Rechercher un challenge'),
+        content: CustomTextField(
+          label: 'Recherche',
+          hint: 'Nom ou description...',
+          prefixIcon: const Icon(Icons.search),
+          onChanged: (value) {
+            setState(() {
+              _searchQuery = value;
+            });
+          },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              setState(() {
+                _searchQuery = '';
+              });
+              Navigator.pop(context);
+            },
+            child: const Text('Réinitialiser'),
+          ),
+          CustomButton(
+            text: 'Rechercher',
+            onPressed: () => Navigator.pop(context),
+            type: ButtonType.primary,
+            size: ButtonSize.medium,
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _clearFilters() {
+    setState(() {
+      _searchQuery = '';
+      _selectedCategory = null;
+      _selectedStatus = null;
+      _selectedChallengeType = null;
+    });
+  }
+
+  bool get _hasActiveFilters =>
+      _searchQuery.isNotEmpty ||
+      _selectedCategory != null ||
+      _selectedStatus != null ||
+      _selectedChallengeType != null;
+
   @override
   Widget build(BuildContext context) {
     final challengesState = ref.watch(challengesProvider);
+
+    // Apply filters to challenges
+    final filteredMyChallenges = _filterChallenges(challengesState.myChallenges);
+    final filteredPublicChallenges = _filterChallenges(challengesState.publicChallenges);
 
     return Scaffold(
       appBar: AppBar(
@@ -36,24 +126,145 @@ class _ChallengesTabState extends ConsumerState<ChallengesTab> {
         actions: [
           IconButton(
             icon: const Icon(Icons.search),
-            onPressed: () {
-              // TODO: Search challenges
-            },
+            onPressed: _showSearchDialog,
           ),
-          IconButton(
-            icon: const Icon(Icons.filter_list),
-            onPressed: () {
-              // TODO: Filter challenges
-            },
+          Stack(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.filter_list),
+                onPressed: () {
+                  setState(() {
+                    _showFilters = !_showFilters;
+                  });
+                },
+              ),
+              if (_hasActiveFilters)
+                Positioned(
+                  right: 8,
+                  top: 8,
+                  child: Container(
+                    width: 8,
+                    height: 8,
+                    decoration: const BoxDecoration(
+                      color: AppColors.error,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+            ],
           ),
         ],
       ),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          await ref.read(challengesProvider.notifier).loadMyChallenges();
-          await ref.read(challengesProvider.notifier).loadPublicChallenges();
-        },
-        child: CustomScrollView(
+      body: Column(
+        children: [
+          // Filter panel
+          if (_showFilters)
+            Container(
+              padding: const EdgeInsets.all(AppSizes.paddingM),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                border: Border(
+                  bottom: BorderSide(color: AppColors.border, width: 1),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Filtres',
+                        style: AppTextStyles.titleMedium,
+                      ),
+                      if (_hasActiveFilters)
+                        TextButton(
+                          onPressed: _clearFilters,
+                          child: const Text('Réinitialiser'),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSizes.paddingS),
+
+                  // Category filter
+                  const Text('Catégorie', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: AppSizes.paddingXS),
+                  Wrap(
+                    spacing: 8,
+                    children: StakeCategory.values.map((category) {
+                      final isSelected = _selectedCategory == category;
+                      return FilterChip(
+                        label: Text(_getCategoryName(category)),
+                        selected: isSelected,
+                        onSelected: (selected) {
+                          setState(() {
+                            _selectedCategory = selected ? category : null;
+                          });
+                        },
+                        backgroundColor: AppColors.surface,
+                        selectedColor: AppColors.primary.withOpacity(0.2),
+                        checkmarkColor: AppColors.primary,
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: AppSizes.paddingS),
+
+                  // Status filter
+                  const Text('Statut', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: AppSizes.paddingXS),
+                  Wrap(
+                    spacing: 8,
+                    children: ChallengeStatus.values.map((status) {
+                      final isSelected = _selectedStatus == status;
+                      return FilterChip(
+                        label: Text(_getStatusName(status)),
+                        selected: isSelected,
+                        onSelected: (selected) {
+                          setState(() {
+                            _selectedStatus = selected ? status : null;
+                          });
+                        },
+                        backgroundColor: AppColors.surface,
+                        selectedColor: AppColors.primary.withOpacity(0.2),
+                        checkmarkColor: AppColors.primary,
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: AppSizes.paddingS),
+
+                  // Challenge type filter
+                  const Text('Type', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: AppSizes.paddingXS),
+                  Wrap(
+                    spacing: 8,
+                    children: ChallengeType.values.map((type) {
+                      final isSelected = _selectedChallengeType == type;
+                      return FilterChip(
+                        label: Text(_getChallengeTypeName(type)),
+                        selected: isSelected,
+                        onSelected: (selected) {
+                          setState(() {
+                            _selectedChallengeType = selected ? type : null;
+                          });
+                        },
+                        backgroundColor: AppColors.surface,
+                        selectedColor: AppColors.primary.withOpacity(0.2),
+                        checkmarkColor: AppColors.primary,
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ),
+            ),
+
+          // Challenges list
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: () async {
+                await ref.read(challengesProvider.notifier).loadMyChallenges();
+                await ref.read(challengesProvider.notifier).loadPublicChallenges();
+              },
+              child: CustomScrollView(
           slivers: [
             // My Challenges Section
             SliverToBoxAdapter(
@@ -86,14 +297,18 @@ class _ChallengesTabState extends ConsumerState<ChallengesTab> {
                   child: LoadingIndicator(message: 'Chargement de vos challenges...'),
                 ),
               )
-            else if (challengesState.myChallenges.isEmpty)
-              const SliverToBoxAdapter(
+            else if (filteredMyChallenges.isEmpty)
+              SliverToBoxAdapter(
                 child: Padding(
-                  padding: EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(16),
                   child: EmptyState(
                     icon: Icons.people_outline,
-                    title: 'Aucun challenge en cours',
-                    subtitle: 'Rejoignez un challenge public ou créez le vôtre',
+                    title: _hasActiveFilters
+                        ? 'Aucun résultat'
+                        : 'Aucun challenge en cours',
+                    subtitle: _hasActiveFilters
+                        ? 'Essayez de modifier vos filtres'
+                        : 'Rejoignez un challenge public ou créez le vôtre',
                   ),
                 ),
               )
@@ -103,10 +318,10 @@ class _ChallengesTabState extends ConsumerState<ChallengesTab> {
                 sliver: SliverList(
                   delegate: SliverChildBuilderDelegate(
                     (context, index) {
-                      final challenge = challengesState.myChallenges[index];
+                      final challenge = filteredMyChallenges[index];
                       return _buildChallengeCard(context, challenge, isMyChallenge: true);
                     },
-                    childCount: challengesState.myChallenges.length,
+                    childCount: filteredMyChallenges.length,
                   ),
                 ),
               ),
@@ -159,14 +374,18 @@ class _ChallengesTabState extends ConsumerState<ChallengesTab> {
                   ),
                 ),
               )
-            else if (challengesState.publicChallenges.isEmpty)
-              const SliverToBoxAdapter(
+            else if (filteredPublicChallenges.isEmpty)
+              SliverToBoxAdapter(
                 child: Padding(
-                  padding: EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(16),
                   child: EmptyState(
                     icon: Icons.public_off,
-                    title: 'Aucun challenge public disponible',
-                    subtitle: 'Soyez le premier à créer un challenge public !',
+                    title: _hasActiveFilters
+                        ? 'Aucun résultat'
+                        : 'Aucun challenge public disponible',
+                    subtitle: _hasActiveFilters
+                        ? 'Essayez de modifier vos filtres'
+                        : 'Soyez le premier à créer un challenge public !',
                   ),
                 ),
               )
@@ -176,10 +395,10 @@ class _ChallengesTabState extends ConsumerState<ChallengesTab> {
                 sliver: SliverList(
                   delegate: SliverChildBuilderDelegate(
                     (context, index) {
-                      final challenge = challengesState.publicChallenges[index];
+                      final challenge = filteredPublicChallenges[index];
                       return _buildChallengeCard(context, challenge, isMyChallenge: false);
                     },
-                    childCount: challengesState.publicChallenges.length,
+                    childCount: filteredPublicChallenges.length,
                   ),
                 ),
               ),
@@ -190,6 +409,10 @@ class _ChallengesTabState extends ConsumerState<ChallengesTab> {
             ),
           ],
         ),
+              ),
+            ),
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
@@ -445,6 +668,42 @@ class _ChallengesTabState extends ConsumerState<ChallengesTab> {
       } else {
         return 'Se termine bientôt';
       }
+    }
+  }
+
+  String _getCategoryName(StakeCategory category) {
+    switch (category) {
+      case StakeCategory.fitness:
+        return 'Sport';
+      case StakeCategory.education:
+        return 'Éducation';
+      case StakeCategory.productivity:
+        return 'Productivité';
+      case StakeCategory.finance:
+        return 'Finance';
+      case StakeCategory.personalDevelopment:
+        return 'Développement personnel';
+      case StakeCategory.family:
+        return 'Famille';
+      case StakeCategory.creativity:
+        return 'Créativité';
+      case StakeCategory.home:
+        return 'Maison';
+      case StakeCategory.digitalDetox:
+        return 'Détox digitale';
+    }
+  }
+
+  String _getStatusName(ChallengeStatus status) {
+    switch (status) {
+      case ChallengeStatus.pending:
+        return 'En attente';
+      case ChallengeStatus.active:
+        return 'Actif';
+      case ChallengeStatus.completed:
+        return 'Terminé';
+      case ChallengeStatus.cancelled:
+        return 'Annulé';
     }
   }
 }

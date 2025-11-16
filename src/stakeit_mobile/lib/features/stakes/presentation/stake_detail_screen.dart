@@ -12,6 +12,8 @@ import '../../../shared/widgets/confirmation_dialog.dart';
 import '../../../shared/utils/date_formatter.dart';
 import '../../../shared/utils/currency_formatter.dart';
 import '../../../shared/utils/error_mapper.dart';
+import '../../../shared/services/location_service.dart';
+import '../../../shared/services/image_service.dart';
 import '../data/providers/stake_provider.dart';
 
 class StakeDetailScreen extends ConsumerWidget {
@@ -502,72 +504,330 @@ class StakeDetailScreen extends ConsumerWidget {
   }
 
   void _showSubmitProofDialog(BuildContext context, WidgetRef ref, StakeModel stake) {
-    final notesController = TextEditingController();
-
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Soumettre une preuve'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Mode de preuve: ${_getProofModeName(stake.proofMode)}',
-              style: const TextStyle(fontWeight: FontWeight.bold),
+      builder: (context) => _SubmitProofDialog(
+        stake: stake,
+        stakeId: stakeId,
+      ),
+    );
+  }
+}
+
+// Submit Proof Dialog Widget
+class _SubmitProofDialog extends ConsumerStatefulWidget {
+  final StakeModel stake;
+  final int stakeId;
+
+  const _SubmitProofDialog({
+    required this.stake,
+    required this.stakeId,
+  });
+
+  @override
+  ConsumerState<_SubmitProofDialog> createState() => _SubmitProofDialogState();
+}
+
+class _SubmitProofDialogState extends ConsumerState<_SubmitProofDialog> {
+  final _notesController = TextEditingController();
+  LocationData? _location;
+  ImageData? _photo;
+  bool _isLoadingLocation = false;
+  bool _isLoadingPhoto = false;
+
+  @override
+  void dispose() {
+    _notesController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _captureLocation() async {
+    setState(() => _isLoadingLocation = true);
+
+    try {
+      final locationService = ref.read(locationServiceProvider);
+      final location = await locationService.getCurrentLocation();
+
+      if (mounted) {
+        setState(() {
+          _location = location;
+          _isLoadingLocation = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Localisation capturée !'),
+            backgroundColor: AppColors.success,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoadingLocation = false);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(ErrorMapper.mapLocationError(e)),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _capturePhoto() async {
+    setState(() => _isLoadingPhoto = true);
+
+    try {
+      final imageService = ref.read(imageServiceProvider);
+
+      // Show options: camera or gallery
+      final source = await showDialog<ImageSource>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Sélectionner une source'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.camera_alt),
+                title: const Text('Prendre une photo'),
+                onTap: () => Navigator.pop(context, ImageSource.camera),
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library),
+                title: const Text('Choisir depuis la galerie'),
+                onTap: () => Navigator.pop(context, ImageSource.gallery),
+              ),
+            ],
+          ),
+        ),
+      );
+
+      if (source == null || !mounted) {
+        setState(() => _isLoadingPhoto = false);
+        return;
+      }
+
+      final photo = source == ImageSource.camera
+          ? await imageService.pickFromCamera()
+          : await imageService.pickFromGallery();
+
+      if (mounted) {
+        setState(() {
+          _photo = photo;
+          _isLoadingPhoto = false;
+        });
+
+        if (photo != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Photo capturée !'),
+              backgroundColor: AppColors.success,
+              duration: Duration(seconds: 2),
             ),
-            const SizedBox(height: 16),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoadingPhoto = false);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur lors de la capture de photo: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _submitProof() async {
+    try {
+      // Convert photo to base64 if present
+      String? photoBase64;
+      if (_photo != null) {
+        final imageService = ref.read(imageServiceProvider);
+        photoBase64 = await imageService.imageToBase64(_photo!);
+      }
+
+      final request = SubmitProofRequest(
+        notes: _notesController.text.isEmpty ? null : _notesController.text,
+        latitude: _location?.latitude,
+        longitude: _location?.longitude,
+        photoUrl: photoBase64, // Backend will handle base64 to URL conversion
+      );
+
+      await ref.read(stakesProvider.notifier).submitProof(widget.stakeId, request);
+
+      if (mounted) {
+        Navigator.pop(context);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Preuve soumise avec succès !'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+
+        ref.refresh(stakeDetailProvider(widget.stakeId));
+        ref.refresh(stakeProofsProvider(widget.stakeId));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(ErrorMapper.mapStakeError(e)),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final requiresGPS = widget.stake.proofMode == ProofMode.gps;
+    final requiresPhoto = widget.stake.proofMode == ProofMode.photo;
+
+    return AlertDialog(
+      title: const Text('Soumettre une preuve'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Proof mode info
+            InfoCard(
+              message: 'Mode: ${_getProofModeName(widget.stake.proofMode)}',
+              icon: Icons.info_outline,
+              color: AppColors.primary,
+            ),
+            const SizedBox(height: AppSizes.paddingM),
+
+            // GPS Section
+            if (requiresGPS) ...[
+              Text(
+                'Localisation GPS',
+                style: AppTextStyles.titleMedium.copyWith(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: AppSizes.paddingS),
+              if (_location != null)
+                SuccessCard(
+                  message: 'Position: ${_location!.latitude.toStringAsFixed(6)}, ${_location!.longitude.toStringAsFixed(6)}\nPrécision: ${_location!.accuracy.toStringAsFixed(1)}m',
+                  icon: Icons.check_circle,
+                )
+              else
+                CustomButton(
+                  text: 'Capturer la localisation',
+                  icon: Icons.my_location,
+                  onPressed: _isLoadingLocation ? null : _captureLocation,
+                  type: ButtonType.outlined,
+                  size: ButtonSize.medium,
+                  isLoading: _isLoadingLocation,
+                  isFullWidth: true,
+                ),
+              const SizedBox(height: AppSizes.paddingM),
+            ],
+
+            // Photo Section
+            if (requiresPhoto) ...[
+              Text(
+                'Photo',
+                style: AppTextStyles.titleMedium.copyWith(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: AppSizes.paddingS),
+              if (_photo != null) ...[
+                Container(
+                  height: 150,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(AppSizes.radiusM),
+                    image: DecorationImage(
+                      image: FileImage(_photo!.file),
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: AppSizes.paddingS),
+                Row(
+                  children: [
+                    Expanded(
+                      child: SuccessCard(
+                        message: 'Photo capturée\nTaille: ${_photo!.sizeInMB} MB',
+                        icon: Icons.check_circle,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete, color: AppColors.error),
+                      onPressed: () => setState(() => _photo = null),
+                    ),
+                  ],
+                ),
+              ] else
+                CustomButton(
+                  text: 'Ajouter une photo',
+                  icon: Icons.camera_alt,
+                  onPressed: _isLoadingPhoto ? null : _capturePhoto,
+                  type: ButtonType.outlined,
+                  size: ButtonSize.medium,
+                  isLoading: _isLoadingPhoto,
+                  isFullWidth: true,
+                ),
+              const SizedBox(height: AppSizes.paddingM),
+            ],
+
+            // Notes
+            Text(
+              'Notes (optionnel)',
+              style: AppTextStyles.titleMedium.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: AppSizes.paddingS),
             TextField(
-              controller: notesController,
+              controller: _notesController,
               decoration: const InputDecoration(
-                labelText: 'Notes (optionnel)',
                 hintText: 'Ajoutez des détails...',
+                border: OutlineInputBorder(),
               ),
               maxLines: 3,
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Annuler'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(context);
-
-              try {
-                final request = SubmitProofRequest(
-                  notes: notesController.text.isEmpty ? null : notesController.text,
-                  // TODO: Add GPS and photo support
-                );
-
-                await ref.read(stakesProvider.notifier).submitProof(stakeId, request);
-
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Preuve soumise avec succès !'),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-                  ref.refresh(stakeDetailProvider(stakeId));
-                  ref.refresh(stakeProofsProvider(stakeId));
-                }
-              } catch (e) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(e.toString().replaceAll('Exception: ', '')),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                }
-              }
-            },
-            child: const Text('Soumettre'),
-          ),
-        ],
       ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Annuler'),
+        ),
+        CustomButton(
+          text: 'Soumettre',
+          onPressed: _canSubmit() ? _submitProof : null,
+          type: ButtonType.primary,
+          size: ButtonSize.medium,
+        ),
+      ],
     );
+  }
+
+  bool _canSubmit() {
+    if (widget.stake.proofMode == ProofMode.gps && _location == null) {
+      return false;
+    }
+    if (widget.stake.proofMode == ProofMode.photo && _photo == null) {
+      return false;
+    }
+    return true;
+  }
+
+  String _getProofModeName(ProofMode mode) {
+    switch (mode) {
+      case ProofMode.manual:
+        return 'Manuel';
+      case ProofMode.gps:
+        return 'GPS';
+      case ProofMode.photo:
+        return 'Photo';
+    }
   }
 }
