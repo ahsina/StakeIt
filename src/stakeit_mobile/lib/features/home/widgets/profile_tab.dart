@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/router/app_router.dart';
+import '../../../core/theme/app_constants.dart';
+import '../../../shared/widgets/widgets.dart';
+import '../../../shared/utils/utils.dart';
 import '../../../features/auth/data/providers/auth_provider.dart';
 import '../../../features/profile/data/providers/stats_provider.dart';
 import '../../../shared/models/badge_model.dart';
@@ -226,10 +229,10 @@ class ProfileTab extends ConsumerWidget {
                             Expanded(
                               child: _DetailStatCard(
                                 label: 'Profit net',
-                                value: '${stats.netProfit.toStringAsFixed(0)}€',
+                                value: CurrencyFormatter.format(stats.netProfit),
                                 color: stats.netProfit >= 0
-                                    ? Colors.green
-                                    : Colors.red,
+                                    ? AppColors.success
+                                    : AppColors.error,
                                 icon: Icons.euro,
                               ),
                             ),
@@ -237,24 +240,10 @@ class ProfileTab extends ConsumerWidget {
                         ),
                       ],
                     ),
-                    loading: () => const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(32),
-                        child: CircularProgressIndicator(),
-                      ),
-                    ),
-                    error: (error, _) => Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(32),
-                        child: Column(
-                          children: [
-                            const Icon(Icons.error_outline,
-                                size: 48, color: Colors.red),
-                            const SizedBox(height: 16),
-                            Text(error.toString()),
-                          ],
-                        ),
-                      ),
+                    loading: () => const LoadingIndicator(message: 'Chargement des statistiques...'),
+                    error: (error, _) => ErrorDisplay(
+                      message: ErrorMapper.mapError(error),
+                      onRetry: () => ref.refresh(userStatsProvider),
                     ),
                   ),
                 ],
@@ -286,16 +275,10 @@ class ProfileTab extends ConsumerWidget {
                   ref.watch(earnedBadgesProvider).when(
                         data: (earnedBadges) {
                           if (earnedBadges.isEmpty) {
-                            return const Card(
-                              child: Padding(
-                                padding: EdgeInsets.all(24),
-                                child: Center(
-                                  child: Text(
-                                    'Aucun badge gagné pour le moment',
-                                    style: TextStyle(color: Colors.grey),
-                                  ),
-                                ),
-                              ),
+                            return const EmptyState(
+                              icon: Icons.emoji_events_outlined,
+                              title: 'Aucun badge gagné',
+                              subtitle: 'Complétez vos premiers défis pour gagner des badges',
                             );
                           }
 
@@ -313,10 +296,8 @@ class ProfileTab extends ConsumerWidget {
                             ),
                           );
                         },
-                        loading: () => const Center(
-                          child: CircularProgressIndicator(),
-                        ),
-                        error: (_, __) => const SizedBox(),
+                        loading: () => const LoadingIndicator(message: 'Chargement des badges...'),
+                        error: (error, _) => const SizedBox(),
                       ),
                 ],
               ),
@@ -371,22 +352,11 @@ class ProfileTab extends ConsumerWidget {
               padding: const EdgeInsets.all(16),
               child: OutlinedButton.icon(
                 onPressed: () async {
-                  final confirmed = await showDialog<bool>(
+                  final confirmed = await ConfirmationDialog.show(
                     context: context,
-                    builder: (context) => AlertDialog(
-                      title: const Text('Déconnexion'),
-                      content: const Text('Voulez-vous vraiment vous déconnecter ?'),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.of(context).pop(false),
-                          child: const Text('Annuler'),
-                        ),
-                        TextButton(
-                          onPressed: () => Navigator.of(context).pop(true),
-                          child: const Text('Déconnexion'),
-                        ),
-                      ],
-                    ),
+                    title: 'Déconnexion',
+                    message: 'Voulez-vous vraiment vous déconnecter ?',
+                    isDangerous: false,
                   );
 
                   if (confirmed == true) {
@@ -399,8 +369,8 @@ class ProfileTab extends ConsumerWidget {
                 icon: const Icon(Icons.logout),
                 label: const Text('Déconnexion'),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.red,
-                  side: const BorderSide(color: Colors.red),
+                  foregroundColor: AppColors.error,
+                  side: BorderSide(color: AppColors.error),
                 ),
               ),
             ),
