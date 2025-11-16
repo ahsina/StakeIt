@@ -218,14 +218,32 @@ lib/
     ├── models/
     │   ├── badge_model.dart         # Badges + Stats
     │   ├── challenge_model.dart     # Challenge + Participant + Message
+    │   ├── payment_model.dart       # Payment + Wallet + Transaction
     │   └── stake_model.dart         # Stake + Proof + Request
-    └── services/
-        ├── api_client.dart          # Dio HTTP client
-        ├── image_service.dart       # Photos + compression
-        ├── location_service.dart    # GPS + geofence
-        ├── notification_service.dart # FCM + local
-        ├── signalr_service.dart     # WebSocket temps réel
-        └── storage_service.dart     # Secure + SharedPreferences
+    ├── services/
+    │   ├── api_client.dart          # Dio HTTP client
+    │   ├── image_service.dart       # Photos + compression
+    │   ├── location_service.dart    # GPS + geofence
+    │   ├── notification_service.dart # FCM + local
+    │   ├── signalr_service.dart     # WebSocket temps réel
+    │   └── storage_service.dart     # Secure + SharedPreferences
+    ├── utils/
+    │   ├── currency_formatter.dart  # Formatage euros, pourcentages
+    │   ├── date_formatter.dart      # Dates relatif, long, court
+    │   ├── error_mapper.dart        # Mapping erreurs API
+    │   ├── string_helpers.dart      # Manipulation chaînes
+    │   └── validators.dart          # Validateurs formulaires
+    └── widgets/
+        ├── avatar_widget.dart       # Avatar avec initials, stack
+        ├── bottom_sheet_wrapper.dart # Bottom sheets
+        ├── confirmation_dialog.dart  # Dialogs de confirmation
+        ├── custom_button.dart       # Bouton réutilisable
+        ├── custom_text_field.dart   # Input de formulaire
+        ├── empty_state.dart         # État vide
+        ├── info_card.dart           # Cards d'information
+        ├── loading_indicator.dart   # Indicateurs de chargement
+        ├── progress_bar.dart        # Barres de progression
+        └── status_badge.dart        # Badges de statut
 ```
 
 ### Patterns utilisés
@@ -251,6 +269,259 @@ Repository
 StateNotifier
     ↓ state = newState
 UI Widget (rebuild)
+```
+
+## 🎨 UI Components & Utilities
+
+### Design System (lib/core/theme/app_constants.dart)
+
+#### AppColors
+Palette de couleurs complète pour l'application :
+- **Primaires** : `primary`, `secondary`, `surface`, `background`
+- **États Stakes** : `stakeActive`, `stakeCompleted`, `stakeFailed`, `stakeCancelled`
+- **États Challenges** : `challengeOpen`, `challengeActive`, `challengeCompleted`
+- **Catégories** : 9 couleurs pour chaque catégorie (Fitness, Éducation, etc.)
+- **Médailles** : `medalGold`, `medalSilver`, `medalBronze`
+- **Alertes** : `error`, `warning`, `success`, `info`
+- **Texte** : `textPrimary`, `textSecondary`, `border`
+
+#### AppSizes
+Tailles standardisées pour espacements et éléments :
+- **Padding** : `paddingXS`, `paddingS`, `paddingM`, `paddingL`, `paddingXL`, `paddingXXL`
+- **Margin** : `marginXS` à `marginXXL`
+- **Radius** : `radiusS`, `radiusM`, `radiusL`, `radiusXL`
+- **Icons** : `iconXS`, `iconS`, `iconM`, `iconL`, `iconXL`, `iconXXL`
+- **Buttons** : `buttonHeightS`, `buttonHeightM`, `buttonHeightL`
+
+#### AppTextStyles
+Styles de texte Material 3 :
+- **Display** : `displayLarge`, `displayMedium`, `displaySmall`
+- **Heading** : `headingLarge`, `headingMedium`, `headingSmall`
+- **Body** : `bodyLarge`, `bodyMedium`, `bodySmall`
+- **Label** : `labelLarge`, `labelMedium`, `labelSmall`
+
+#### AppConstants
+Constantes métier de l'application :
+- **Stakes** : `minStakeAmount` (5€), `maxStakeAmount` (10000€), `cancellationPeriodHours` (2h)
+- **Challenges** : `minEntryFee` (5€), `maxParticipants` (100)
+- **Images** : `maxImageSizeMB` (5), `imageQuality` (85)
+- **GPS** : `gpsTimeout` (10s), `locationAccuracy` (50m)
+
+### Shared Widgets (lib/shared/widgets/)
+
+#### CustomButton
+Bouton réutilisable avec 4 types et 3 tailles :
+- **Types** : `primary`, `secondary`, `outlined`, `text`
+- **Tailles** : `small`, `medium`, `large`
+- **Features** : Loading state, icon support, full width option
+
+```dart
+CustomButton(
+  text: 'Se connecter',
+  onPressed: handleLogin,
+  isLoading: isLoading,
+  type: ButtonType.primary,
+  size: ButtonSize.large,
+  icon: Icons.login,
+)
+```
+
+#### CustomTextField & CurrencyTextField
+Input de formulaire avec validation :
+- Label, hint, prefixIcon, suffixIcon
+- Validation intégrée avec Validators
+- `CurrencyTextField` spécialisé pour montants en euros
+- Support obscureText pour mots de passe
+
+```dart
+CurrencyTextField(
+  label: 'Montant',
+  hint: '20.00',
+  controller: amountController,
+  validator: (value) => Validators.validateAmount(value, min: 5.0),
+)
+```
+
+#### Dialogs (ConfirmationDialog, InfoDialog)
+Dialogs standardisés avec Material 3 :
+- Confirmation avec actions Confirmer/Annuler
+- Info avec un seul bouton OK
+- Support icônes et couleurs personnalisées
+- Option `isDangerous` pour actions destructives
+
+```dart
+final confirmed = await ConfirmationDialog.show(
+  context: context,
+  title: 'Supprimer le stake ?',
+  message: 'Cette action est irréversible.',
+  isDangerous: true,
+  icon: Icons.delete,
+);
+```
+
+#### Bottom Sheets (BottomSheetWrapper, ScrollableBottomSheet)
+Bottom sheets avec design cohérent :
+- Handle de drag
+- Titre et bouton fermer
+- ScrollableBottomSheet avec DraggableScrollableSheet
+- Hauteur personnalisable
+
+```dart
+BottomSheetWrapper.show(
+  context: context,
+  title: 'Historique des transactions',
+  child: TransactionList(),
+  height: MediaQuery.of(context).size.height * 0.75,
+);
+```
+
+#### Avatar Widgets (AvatarWidget, ParticipantAvatar, AvatarStack)
+Avatars avec fallback sur initiales :
+- Couleur générée automatiquement à partir du nom
+- `ParticipantAvatar` avec rang et bordure gagnant
+- `AvatarStack` pour afficher plusieurs participants
+- Support tap handler
+
+```dart
+AvatarWidget(
+  imageUrl: user.avatarUrl,
+  name: user.name,
+  size: 48,
+  showBorder: true,
+  onTap: () => navigateToProfile(),
+)
+```
+
+#### Progress Bars
+Multiples types de barres de progression :
+- `ProgressBar` : linéaire basique
+- `AnimatedProgressBar` : avec animation fluide
+- `StakeProgressBar` : pour stakes avec jours restants
+- `CircularProgressIndicatorCustom` : circulaire
+- `XPProgressBar` : pour niveau et XP
+
+```dart
+StakeProgressBar(
+  currentDay: 5,
+  totalDays: 7,
+  showLabel: true,
+)
+```
+
+#### Info Cards (InfoCard, StatCard, WarningCard, SuccessCard, ErrorCard)
+Cards d'information standardisées :
+- `InfoCard` : information générale avec icône
+- `StatCard` : statistique avec valeur et label
+- `WarningCard`, `SuccessCard`, `ErrorCard` : alertes colorées
+- `GradientCard` : card avec dégradé personnalisé
+
+```dart
+StatCard(
+  label: 'Stakes complétés',
+  value: '42',
+  icon: Icons.emoji_events,
+  color: AppColors.stakeCompleted,
+)
+```
+
+#### Status Badges (StatusBadge, CategoryBadge)
+Badges pour afficher statuts et catégories :
+- `StatusBadge.fromStakeStatus()` : Actif, Complété, Échoué, Annulé
+- `StatusBadge.fromChallengeStatus()` : Ouvert, En cours, Terminé
+- `CategoryBadge` : 9 catégories avec icônes et couleurs
+
+```dart
+StatusBadge.fromStakeStatus(stake.status, isLarge: true)
+```
+
+#### Other Widgets
+- `EmptyState` : État vide avec icône, titre, message, action
+- `LoadingIndicator` : Indicateur de chargement avec message
+- `ErrorDisplay` : Affichage erreur avec bouton Réessayer
+- `ShimmerLoading` : Skeleton screen avec animation shimmer
+
+### Utilities (lib/shared/utils/)
+
+#### DateFormatter
+Formatage de dates en français :
+- `formatLongDate()` : "15 janvier 2024"
+- `formatShortDate()` : "15/01/2024"
+- `formatDateTime()` : "15/01/2024 14:30"
+- `formatRelativeTime()` : "Il y a 2 heures"
+- `formatTimeRemaining()` : "2 jours 5h"
+- `formatContextualDate()` : "Aujourd'hui", "Hier", ou date complète
+
+```dart
+final formatted = DateFormatter.formatRelativeTime(stake.createdAt);
+// "Il y a 2 heures"
+```
+
+#### CurrencyFormatter
+Formatage de montants en euros :
+- `format()` : "10,50 €"
+- `formatWithSign()` : "+10,50 €" ou "-5,25 €"
+- `formatCompact()` : "1,2K €" ou "1,5M €"
+- `parse()` : Conversion string → double
+- `formatPercentage()` : "75,5%"
+- `isAboveMinimum()`, `isInRange()` : Validation
+
+```dart
+final amount = CurrencyFormatter.format(stake.amountEUR);
+// "20,00 €"
+```
+
+#### Validators
+Validateurs de formulaires réutilisables :
+- `validateEmail()` : Validation email avec regex
+- `validatePassword()` : Longueur minimale
+- `validateStrongPassword()` : Majuscule, minuscule, chiffre, spécial
+- `validateAmount()` : Montant avec min/max
+- `validateStakeAmount()` : 5-10000€
+- `validatePositiveNumber()` : Nombre > 0
+- `validateRequired()` : Champ requis
+- Et plus...
+
+```dart
+CustomTextField(
+  label: 'Email',
+  validator: Validators.validateEmail,
+)
+```
+
+#### ErrorMapper
+Mapping d'erreurs API vers messages utilisateur :
+- `mapError()` : Mapping générique d'erreurs
+- `mapAuthError()` : Erreurs d'authentification
+- `mapPaymentError()` : Erreurs de paiement
+- `mapStakeError()` : Erreurs de stakes
+- `mapChallengeError()` : Erreurs de challenges
+- `mapLocationError()` : Erreurs GPS
+- `isNetworkError()`, `shouldRetry()` : Utilitaires
+
+```dart
+try {
+  await createStake();
+} catch (e) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(content: Text(ErrorMapper.mapStakeError(e))),
+  );
+}
+```
+
+#### StringHelpers
+Manipulation de chaînes de caractères :
+- `capitalize()`, `capitalizeWords()` : Capitalisation
+- `truncate()` : Tronquer avec ellipsis
+- `getInitials()` : Extraire initiales d'un nom
+- `formatFileSize()` : "2.5 MB"
+- `maskEmail()` : "jo***n@example.com"
+- `maskCardNumber()` : "**** **** **** 4242"
+- `formatPhoneNumber()` : Format français
+- `removeAccents()`, `toSlug()` : Normalisation
+
+```dart
+final initials = StringHelpers.getInitials('John Doe');
+// "JD"
 ```
 
 ## 🔧 Technologies
