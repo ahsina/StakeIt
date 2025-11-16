@@ -5,6 +5,9 @@ import 'dart:async';
 import '../../../shared/models/challenge_model.dart';
 import '../../../shared/models/stake_model.dart';
 import '../../../core/router/app_router.dart';
+import '../../../core/theme/app_constants.dart';
+import '../../../shared/widgets/widgets.dart';
+import '../../../shared/utils/utils.dart';
 import '../data/providers/challenge_provider.dart';
 import '../../../shared/services/signalr_service.dart';
 
@@ -144,24 +147,10 @@ class _ChallengeDetailScreenState
             _buildChatTab(context, ref, challenge),
           ],
         ),
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stack) => Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.error_outline, size: 64, color: Colors.red),
-              const SizedBox(height: 16),
-              Text('Erreur de chargement'),
-              const SizedBox(height: 8),
-              Text(error.toString()),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () =>
-                    ref.refresh(challengeDetailProvider(widget.challengeId)),
-                child: const Text('Réessayer'),
-              ),
-            ],
-          ),
+        loading: () => const LoadingIndicator(message: 'Chargement du challenge...'),
+        error: (error, stack) => ErrorDisplay(
+          message: ErrorMapper.mapChallengeError(error),
+          onRetry: () => ref.refresh(challengeDetailProvider(widget.challengeId)),
         ),
       ),
     );
@@ -177,8 +166,8 @@ class _ChallengeDetailScreenState
         padding: const EdgeInsets.all(16),
         children: [
           // Status Badge
-          _buildStatusBadge(context, challenge),
-          const SizedBox(height: 16),
+          StatusBadge.fromChallengeStatus(challenge.status, isLarge: true),
+          const SizedBox(height: AppSizes.paddingM),
 
           // Title and Description Card
           Card(
@@ -224,7 +213,7 @@ class _ChallengeDetailScreenState
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              '${challenge.entryFeeEUR.toStringAsFixed(0)}€',
+                              CurrencyFormatter.format(challenge.entryFeeEUR),
                               style: Theme.of(context)
                                   .textTheme
                                   .titleLarge
@@ -246,7 +235,7 @@ class _ChallengeDetailScreenState
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              '${challenge.totalPrizePool.toStringAsFixed(0)}€',
+                              CurrencyFormatter.format(challenge.totalPrizePool),
                               style: Theme.of(context)
                                   .textTheme
                                   .titleLarge
@@ -337,14 +326,14 @@ class _ChallengeDetailScreenState
                   _buildDetailRow(
                     context,
                     'Début',
-                    _formatDate(challenge.startDate),
+                    DateFormatter.formatLongDateTime(challenge.startDate),
                     Icons.play_circle,
                   ),
                   const Divider(height: 24),
                   _buildDetailRow(
                     context,
                     'Fin',
-                    _formatDate(challenge.endDate),
+                    DateFormatter.formatLongDateTime(challenge.endDate),
                     Icons.stop_circle,
                   ),
                   if (!challenge.isStarted) ...[
@@ -362,7 +351,7 @@ class _ChallengeDetailScreenState
                                 style: Theme.of(context).textTheme.bodySmall,
                               ),
                               Text(
-                                _formatDuration(challenge.timeUntilStart),
+                                DateFormatter.formatDuration(challenge.timeUntilStart),
                                 style:
                                     Theme.of(context).textTheme.titleMedium?.copyWith(
                                           color: Theme.of(context).primaryColor,
@@ -388,7 +377,7 @@ class _ChallengeDetailScreenState
                                 style: Theme.of(context).textTheme.bodySmall,
                               ),
                               Text(
-                                _formatDuration(challenge.timeRemaining),
+                                DateFormatter.formatDuration(challenge.timeRemaining),
                                 style: Theme.of(context)
                                     .textTheme
                                     .titleMedium
@@ -473,11 +462,10 @@ class _ChallengeDetailScreenState
       child: leaderboardAsync.when(
         data: (participants) {
           if (participants.isEmpty) {
-            return const Center(
-              child: Padding(
-                padding: EdgeInsets.all(32),
-                child: Text('Aucun participant pour le moment'),
-              ),
+            return const EmptyState(
+              icon: Icons.leaderboard,
+              title: 'Aucun participant',
+              subtitle: 'Personne n\'a encore rejoint ce challenge',
             );
           }
 
@@ -490,22 +478,10 @@ class _ChallengeDetailScreenState
             },
           );
         },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stack) => Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.error_outline, size: 64, color: Colors.red),
-              const SizedBox(height: 16),
-              Text(error.toString()),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () =>
-                    ref.refresh(leaderboardProvider(widget.challengeId)),
-                child: const Text('Réessayer'),
-              ),
-            ],
-          ),
+        loading: () => const LoadingIndicator(message: 'Chargement du classement...'),
+        error: (error, stack) => ErrorDisplay(
+          message: ErrorMapper.mapChallengeError(error),
+          onRetry: () => ref.refresh(leaderboardProvider(widget.challengeId)),
         ),
       ),
     );
@@ -623,11 +599,10 @@ class _ChallengeDetailScreenState
               final allMessagesCount = historicalMessages.length + _realtimeMessages.length;
 
               if (allMessagesCount == 0) {
-                return const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(32),
-                    child: Text('Aucun message pour le moment'),
-                  ),
+                return const EmptyState(
+                  icon: Icons.chat_bubble_outline,
+                  title: 'Aucun message',
+                  subtitle: 'Soyez le premier à envoyer un message !',
                 );
               }
 
@@ -650,22 +625,10 @@ class _ChallengeDetailScreenState
                 },
               );
             },
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (error, stack) => Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.error_outline, size: 64, color: Colors.red),
-                  const SizedBox(height: 16),
-                  Text(error.toString()),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: () =>
-                        ref.refresh(messagesProvider(widget.challengeId)),
-                    child: const Text('Réessayer'),
-                  ),
-                ],
-              ),
+            loading: () => const LoadingIndicator(message: 'Chargement des messages...'),
+            error: (error, stack) => ErrorDisplay(
+              message: ErrorMapper.mapChallengeError(error),
+              onRetry: () => ref.refresh(messagesProvider(widget.challengeId)),
             ),
           ),
         ),
@@ -741,7 +704,7 @@ class _ChallengeDetailScreenState
               ),
               const SizedBox(width: 8),
               Text(
-                _formatTime(message.sentAt),
+                DateFormatter.formatTime(message.sentAt),
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: Colors.grey[600],
                     ),
@@ -786,7 +749,7 @@ class _ChallengeDetailScreenState
               ),
               const SizedBox(width: 8),
               Text(
-                _formatTime(event.timestamp),
+                DateFormatter.formatTime(event.timestamp),
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: Colors.grey[600],
                     ),
@@ -801,59 +764,6 @@ class _ChallengeDetailScreenState
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(event.message),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatusBadge(BuildContext context, ChallengeModel challenge) {
-    Color color;
-    String text;
-    IconData icon;
-
-    switch (challenge.status) {
-      case ChallengeStatus.open:
-        color = Colors.blue;
-        text = 'Ouvert';
-        icon = Icons.door_front_door;
-        break;
-      case ChallengeStatus.active:
-        color = Colors.green;
-        text = 'En cours';
-        icon = Icons.play_circle;
-        break;
-      case ChallengeStatus.completed:
-        color = Colors.purple;
-        text = 'Terminé';
-        icon = Icons.check_circle;
-        break;
-      case ChallengeStatus.cancelled:
-        color = Colors.grey;
-        text = 'Annulé';
-        icon = Icons.cancel;
-        break;
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color, width: 2),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: color),
-          const SizedBox(width: 8),
-          Text(
-            text,
-            style: TextStyle(
-              color: color,
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-            ),
           ),
         ],
       ),
@@ -899,37 +809,29 @@ class _ChallengeDetailScreenState
 
     if (isParticipant) {
       if (!challenge.isStarted) {
-        return OutlinedButton(
+        return CustomButton(
+          text: 'Quitter le challenge',
           onPressed: () => _handleLeaveChallenge(context, ref),
-          style: OutlinedButton.styleFrom(
-            foregroundColor: Colors.red,
-            side: const BorderSide(color: Colors.red),
-            padding: const EdgeInsets.symmetric(vertical: 16),
-          ),
-          child: const Text('Quitter le challenge'),
+          type: ButtonType.outlined,
+          size: ButtonSize.large,
+          isFullWidth: true,
         );
       }
       return const SizedBox.shrink();
     } else {
       if (challenge.isFull) {
-        return Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.grey[200],
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: const Center(
-            child: Text('Challenge complet'),
-          ),
+        return WarningCard(
+          message: 'Challenge complet - Plus de places disponibles',
+          icon: Icons.warning_amber,
         );
       }
 
-      return ElevatedButton(
+      return CustomButton(
+        text: 'Rejoindre le challenge',
         onPressed: () => _handleJoinChallenge(context, ref),
-        style: ElevatedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-        ),
-        child: const Text('Rejoindre le challenge'),
+        type: ButtonType.primary,
+        size: ButtonSize.large,
+        isFullWidth: true,
       );
     }
   }
@@ -1005,24 +907,6 @@ class _ChallengeDetailScreenState
     }
   }
 
-  String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year} à ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
-  }
-
-  String _formatTime(DateTime date) {
-    return '${date.hour}:${date.minute.toString().padLeft(2, '0')}';
-  }
-
-  String _formatDuration(Duration duration) {
-    if (duration.inDays > 0) {
-      return '${duration.inDays}j ${duration.inHours % 24}h';
-    } else if (duration.inHours > 0) {
-      return '${duration.inHours}h ${duration.inMinutes % 60}min';
-    } else {
-      return '${duration.inMinutes}min';
-    }
-  }
-
   void _showOptionsMenu(BuildContext context, WidgetRef ref) {
     showModalBottomSheet(
       context: context,
@@ -1053,7 +937,7 @@ class _ChallengeDetailScreenState
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Vous avez rejoint le challenge !'),
-          backgroundColor: Colors.green,
+          backgroundColor: AppColors.success,
         ),
       );
 
@@ -1063,33 +947,19 @@ class _ChallengeDetailScreenState
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(e.toString().replaceAll('Exception: ', '')),
-          backgroundColor: Colors.red,
+          content: Text(ErrorMapper.mapChallengeError(e)),
+          backgroundColor: AppColors.error,
         ),
       );
     }
   }
 
   Future<void> _handleLeaveChallenge(BuildContext context, WidgetRef ref) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await ConfirmationDialog.show(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Quitter le challenge'),
-        content: const Text(
-          'Êtes-vous sûr de vouloir quitter ce challenge ?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Annuler'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Quitter'),
-          ),
-        ],
-      ),
+      title: 'Quitter le challenge',
+      message: 'Êtes-vous sûr de vouloir quitter ce challenge ? Votre frais d\'entrée sera remboursé.',
+      isDangerous: true,
     );
 
     if (confirmed == true && context.mounted) {
@@ -1103,7 +973,7 @@ class _ChallengeDetailScreenState
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Vous avez quitté le challenge'),
-            backgroundColor: Colors.green,
+            backgroundColor: AppColors.success,
           ),
         );
 
@@ -1122,26 +992,11 @@ class _ChallengeDetailScreenState
   }
 
   Future<void> _handleCancelChallenge(BuildContext context, WidgetRef ref) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await ConfirmationDialog.show(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Annuler le challenge'),
-        content: const Text(
-          'Êtes-vous sûr de vouloir annuler ce challenge ? '
-          'Cette action est irréversible.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Non'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Oui, annuler'),
-          ),
-        ],
-      ),
+      title: 'Annuler le challenge',
+      message: 'Êtes-vous sûr de vouloir annuler ce challenge ? Cette action est irréversible et tous les participants seront remboursés.',
+      isDangerous: true,
     );
 
     if (confirmed == true && context.mounted) {
@@ -1155,7 +1010,7 @@ class _ChallengeDetailScreenState
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Challenge annulé avec succès'),
-            backgroundColor: Colors.green,
+            backgroundColor: AppColors.success,
           ),
         );
 
@@ -1191,8 +1046,8 @@ class _ChallengeDetailScreenState
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Erreur lors de l\'envoi du message'),
-          backgroundColor: Colors.red,
+          content: Text(ErrorMapper.mapChallengeError(e)),
+          backgroundColor: AppColors.error,
         ),
       );
     }
