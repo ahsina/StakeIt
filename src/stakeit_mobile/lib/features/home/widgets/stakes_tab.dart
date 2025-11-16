@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/router/app_router.dart';
+import '../../../core/theme/app_constants.dart';
+import '../../../shared/widgets/widgets.dart';
+import '../../../shared/utils/utils.dart';
 import '../../../features/auth/data/providers/auth_provider.dart';
 import '../../../features/stakes/data/providers/stake_provider.dart';
 import '../../../shared/models/stake_model.dart';
@@ -82,17 +85,9 @@ class _StakesTabState extends ConsumerState<StakesTab> with SingleTickerProvider
                       children: [
                         Row(
                           children: [
-                            CircleAvatar(
-                              radius: 30,
-                              backgroundColor: Theme.of(context).primaryColor,
-                              child: Text(
-                                user?.firstName.substring(0, 1).toUpperCase() ?? 'U',
-                                style: const TextStyle(
-                                  fontSize: 24,
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
+                            AvatarWidget(
+                              name: '${user?.firstName ?? ''} ${user?.lastName ?? ''}',
+                              size: 60,
                             ),
                             const SizedBox(width: 16),
                             Expanded(
@@ -189,64 +184,29 @@ class _StakesTabState extends ConsumerState<StakesTab> with SingleTickerProvider
             // Stakes List
             if (stakesState.isLoading)
               const SliverFillRemaining(
-                child: Center(child: CircularProgressIndicator()),
+                child: LoadingIndicator(message: 'Chargement des stakes...'),
               )
             else if (stakesState.error != null)
               SliverFillRemaining(
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.error_outline, size: 64, color: Colors.red),
-                      const SizedBox(height: 16),
-                      Text(stakesState.error!),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: () => ref.read(stakesProvider.notifier).refresh(),
-                        child: const Text('Réessayer'),
-                      ),
-                    ],
-                  ),
+                child: ErrorDisplay(
+                  message: ErrorMapper.mapStakeError(stakesState.error!),
+                  onRetry: () => ref.read(stakesProvider.notifier).refresh(),
                 ),
               )
             else if (stakesState.stakes.isEmpty)
               SliverFillRemaining(
-                child: Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(32),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.emoji_events_outlined,
-                          size: 64,
-                          color: Colors.grey[400],
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Aucun stake',
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                color: Colors.grey[600],
-                              ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Créez votre premier stake pour commencer !',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: Colors.grey[500],
-                              ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 24),
-                        ElevatedButton.icon(
-                          onPressed: () {
-                            context.go('${AppRoutes.home}/create-stake');
-                          },
-                          icon: const Icon(Icons.add),
-                          label: const Text('Créer un Stake'),
-                        ),
-                      ],
-                    ),
+                child: EmptyState(
+                  icon: Icons.emoji_events_outlined,
+                  title: 'Aucun stake',
+                  subtitle: 'Créez votre premier stake pour commencer !',
+                  actionButton: CustomButton(
+                    text: 'Créer un Stake',
+                    icon: Icons.add,
+                    onPressed: () {
+                      context.go('${AppRoutes.home}/create-stake');
+                    },
+                    type: ButtonType.primary,
+                    size: ButtonSize.large,
                   ),
                 ),
               )
