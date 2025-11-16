@@ -163,6 +163,9 @@ builder.Services.AddScoped<IGeofenceService, GeofenceService>();
 // Challenge Services
 builder.Services.AddScoped<IChallengeService, ChallengeService>();
 
+// Background Services
+builder.Services.AddHostedService<SettlementBackgroundService>();
+
 // ========================================
 // BUILD APP
 // ========================================
