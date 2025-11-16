@@ -8,6 +8,7 @@ class AppConfig {
 
   // API Endpoints
   static const String authEndpoint = '$apiPrefix/auth';
+  static const String usersEndpoint = '$apiPrefix/users';
   static const String stakesEndpoint = '$apiPrefix/stakes';
   static const String challengesEndpoint = '$apiPrefix/challenges';
   static const String geofencesEndpoint = '$apiPrefix/geofences';
