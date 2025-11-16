@@ -483,9 +483,9 @@ class _ChallengesTabState extends ConsumerState<ChallengesTab> {
     String label;
 
     switch (status) {
-      case ChallengeStatus.pending:
+      case ChallengeStatus.open:
         color = Colors.orange;
-        label = 'En attente';
+        label = 'Ouvert';
         break;
       case ChallengeStatus.active:
         color = Colors.green;
@@ -521,14 +521,12 @@ class _ChallengesTabState extends ConsumerState<ChallengesTab> {
 
   String _getChallengeTypeName(ChallengeType type) {
     switch (type) {
-      case ChallengeType.firstToFinish:
-        return 'Premier à finir';
-      case ChallengeType.mostProgress:
-        return 'Plus de progrès';
-      case ChallengeType.survivalRace:
-        return 'Course de survie';
-      case ChallengeType.collaborative:
-        return 'Collaboratif';
+      case ChallengeType.firstToComplete:
+        return 'Premier à compléter';
+      case ChallengeType.highestScore:
+        return 'Score le plus élevé';
+      case ChallengeType.teamBased:
+        return 'En équipe';
     }
   }
 

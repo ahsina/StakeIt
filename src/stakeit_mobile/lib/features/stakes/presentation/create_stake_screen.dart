@@ -47,7 +47,7 @@ class _CreateStakeScreenState extends ConsumerState<CreateStakeScreen> {
     if (date != null) {
       final time = await showTimePicker(
         context: context,
-        initialTime: const TimeTime(hour: 23, minute: 59),
+        initialTime: const TimeOfDay(hour: 23, minute: 59),
         helpText: 'Heure de fin',
       );
 

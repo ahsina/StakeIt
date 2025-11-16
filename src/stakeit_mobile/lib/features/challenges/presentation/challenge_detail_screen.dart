@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'dart:async';
 import '../../../shared/models/challenge_model.dart';
 import '../../../shared/models/stake_model.dart';
 import '../../../core/router/app_router.dart';
 import '../data/providers/challenge_provider.dart';
+import '../../../shared/services/signalr_service.dart';
 
 class ChallengeDetailScreen extends ConsumerStatefulWidget {
   final int challengeId;
@@ -21,18 +23,94 @@ class _ChallengeDetailScreenState
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final _messageController = TextEditingController();
+  final List<ChallengeMessageEvent> _realtimeMessages = [];
+  StreamSubscription<ChallengeMessageEvent>? _messageSubscription;
+  StreamSubscription<ProofSubmittedEvent>? _proofSubscription;
+  StreamSubscription<LeaderboardUpdatedEvent>? _leaderboardSubscription;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _connectToSignalR();
   }
 
   @override
   void dispose() {
+    _disconnectFromSignalR();
     _tabController.dispose();
     _messageController.dispose();
+    _messageSubscription?.cancel();
+    _proofSubscription?.cancel();
+    _leaderboardSubscription?.cancel();
     super.dispose();
+  }
+
+  Future<void> _connectToSignalR() async {
+    try {
+      final signalR = ref.read(signalRServiceProvider);
+
+      // Connect to SignalR hub
+      await signalR.connect();
+
+      // Join this challenge's room
+      await signalR.joinChallenge(widget.challengeId);
+
+      // Listen to new messages
+      _messageSubscription = signalR.onMessageReceived.listen((event) {
+        if (event.challengeId == widget.challengeId) {
+          setState(() {
+            _realtimeMessages.add(event);
+          });
+          // Scroll to bottom when new message arrives
+          _scrollToBottom();
+        }
+      });
+
+      // Listen to proof submissions
+      _proofSubscription = signalR.onProofSubmitted.listen((event) {
+        if (event.challengeId == widget.challengeId) {
+          // Refresh leaderboard
+          ref.refresh(leaderboardProvider(widget.challengeId));
+          // Show snackbar
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('${event.userName} a soumis une preuve!'),
+                duration: const Duration(seconds: 2),
+              ),
+            );
+          }
+        }
+      });
+
+      // Listen to leaderboard updates
+      _leaderboardSubscription = signalR.onLeaderboardUpdated.listen((event) {
+        if (event.challengeId == widget.challengeId) {
+          // Refresh leaderboard
+          ref.refresh(leaderboardProvider(widget.challengeId));
+        }
+      });
+    } catch (e) {
+      print('SignalR connection error: $e');
+    }
+  }
+
+  Future<void> _disconnectFromSignalR() async {
+    try {
+      final signalR = ref.read(signalRServiceProvider);
+      await signalR.leaveChallenge(widget.challengeId);
+    } catch (e) {
+      print('SignalR disconnect error: $e');
+    }
+  }
+
+  void _scrollToBottom() {
+    // Delay to ensure message is rendered
+    Future.delayed(const Duration(milliseconds: 100), () {
+      // This would need a ScrollController in the chat tab
+      // For now, we'll just let it auto-scroll
+    });
   }
 
   @override
@@ -540,8 +618,11 @@ class _ChallengeDetailScreenState
         // Messages List
         Expanded(
           child: messagesAsync.when(
-            data: (messages) {
-              if (messages.isEmpty) {
+            data: (historicalMessages) {
+              // Combine historical and real-time messages
+              final allMessagesCount = historicalMessages.length + _realtimeMessages.length;
+
+              if (allMessagesCount == 0) {
                 return const Center(
                   child: Padding(
                     padding: EdgeInsets.all(32),
@@ -552,10 +633,19 @@ class _ChallengeDetailScreenState
 
               return ListView.builder(
                 padding: const EdgeInsets.all(16),
-                itemCount: messages.length,
+                itemCount: allMessagesCount,
                 reverse: true,
                 itemBuilder: (context, index) {
-                  final message = messages[messages.length - 1 - index];
+                  // Realtime messages appear at the bottom (newest)
+                  if (index < _realtimeMessages.length) {
+                    final rtIndex = _realtimeMessages.length - 1 - index;
+                    final event = _realtimeMessages[rtIndex];
+                    return _buildRealtimeMessageItem(context, event);
+                  }
+
+                  // Historical messages appear above
+                  final histIndex = index - _realtimeMessages.length;
+                  final message = historicalMessages[historicalMessages.length - 1 - histIndex];
                   return _buildMessageItem(context, message);
                 },
               );
@@ -666,6 +756,51 @@ class _ChallengeDetailScreenState
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(message.message),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRealtimeMessageItem(
+      BuildContext context, ChallengeMessageEvent event) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 16,
+                backgroundColor: Theme.of(context).primaryColor,
+                child: Text(
+                  event.userName.substring(0, 1).toUpperCase(),
+                  style: const TextStyle(color: Colors.white, fontSize: 14),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                event.userName,
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                _formatTime(event.timestamp),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Colors.grey[600],
+                    ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(event.message),
           ),
         ],
       ),
@@ -1043,17 +1178,20 @@ class _ChallengeDetailScreenState
     if (message.isEmpty) return;
 
     try {
-      final request = SendMessageRequest(message: message);
-      await ref
-          .read(challengeRepositoryProvider)
-          .sendMessage(widget.challengeId, request);
+      // Send message via SignalR for real-time delivery
+      final signalR = ref.read(signalRServiceProvider);
+      await signalR.sendMessage(widget.challengeId, message);
 
       _messageController.clear();
-      ref.refresh(messagesProvider(widget.challengeId));
+
+      // Note: The message will be received via the SignalR stream
+      // and added to _realtimeMessages automatically
     } catch (e) {
+      if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(e.toString().replaceAll('Exception: ', '')),
+          content: Text('Erreur lors de l\'envoi du message'),
           backgroundColor: Colors.red,
         ),
       );
