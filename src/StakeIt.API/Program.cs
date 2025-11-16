@@ -150,8 +150,10 @@ using StakeIt.API.Services;
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IJwtService, JwtService>();
 
+// Stakes Services
+builder.Services.AddScoped<IStakeService, StakeService>();
+
 // TODO: Add more application services here as we build them
-// builder.Services.AddScoped<IStakeService, StakeService>();
 // builder.Services.AddScoped<IChallengeService, ChallengeService>();
 // builder.Services.AddScoped<IPaymentService, PaymentService>();
 // builder.Services.AddScoped<IGeoLocationService, GeoLocationService>();
