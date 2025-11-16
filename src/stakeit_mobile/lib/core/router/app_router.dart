@@ -7,6 +7,8 @@ import '../../features/auth/presentation/register_screen.dart';
 import '../../features/home/presentation/home_screen.dart';
 import '../../features/stakes/presentation/create_stake_screen.dart';
 import '../../features/stakes/presentation/stake_detail_screen.dart';
+import '../../features/challenges/presentation/create_challenge_screen.dart';
+import '../../features/challenges/presentation/challenge_detail_screen.dart';
 
 // Route paths
 class AppRoutes {
@@ -129,42 +131,6 @@ final routerProvider = Provider<GoRouter>((ref) {
 });
 
 // Placeholder screens (to be implemented)
-class ChallengesScreen extends StatelessWidget {
-  const ChallengesScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Challenges')),
-      body: const Center(child: Text('Challenges Screen - To be implemented')),
-    );
-  }
-}
-
-class ChallengeDetailScreen extends StatelessWidget {
-  final int challengeId;
-  const ChallengeDetailScreen({super.key, required this.challengeId});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Challenge Detail')),
-      body: Center(child: Text('Challenge Detail Screen for ID: $challengeId')),
-    );
-  }
-}
-
-class CreateChallengeScreen extends StatelessWidget {
-  const CreateChallengeScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Create Challenge')),
-      body: const Center(child: Text('Create Challenge Screen - To be implemented')),
-    );
-  }
-}
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
