@@ -31,7 +31,9 @@ class StakeDetailScreen extends ConsumerWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.more_vert),
-            onPressed: () => _showOptionsMenu(context, ref),
+            onPressed: () => stakeAsync.whenData((stake) {
+              _showOptionsMenu(context, ref, stake);
+            }).value,
           ),
         ],
       ),
@@ -210,6 +212,13 @@ class StakeDetailScreen extends ConsumerWidget {
                     'Mode d\'échec',
                     _getFailureModeName(stake.failureMode),
                     Icons.warning,
+                  ),
+                  const Divider(height: 24),
+                  _buildDetailRow(
+                    context,
+                    'Fréquence',
+                    stake.frequencyName,
+                    Icons.repeat,
                   ),
                   const Divider(height: 24),
                   _buildDetailRow(
@@ -446,25 +455,61 @@ class StakeDetailScreen extends ConsumerWidget {
     }
   }
 
-  void _showOptionsMenu(BuildContext context, WidgetRef ref) {
+  void _showOptionsMenu(BuildContext context, WidgetRef ref, StakeModel stake) {
     showModalBottomSheet(
       context: context,
       builder: (context) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ListTile(
-              leading: const Icon(Icons.cancel, color: Colors.red),
-              title: const Text('Annuler le stake'),
-              onTap: () {
-                Navigator.pop(context);
-                _handleCancelStake(context, ref);
-              },
-            ),
+            if (stake.canCancel) ...[
+              ListTile(
+                leading: const Icon(Icons.cancel, color: Colors.red),
+                title: const Text('Annuler le stake'),
+                subtitle: Text(
+                  'Temps restant: ${_formatDuration(stake.cancellationTimeRemaining)}',
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  _handleCancelStake(context, ref);
+                },
+              ),
+            ] else if (stake.status == StakeStatus.pending) ...[
+              ListTile(
+                leading: const Icon(Icons.info_outline, color: AppColors.textSecondary),
+                title: const Text('Annulation non disponible'),
+                subtitle: const Text(
+                  'Vous pouvez annuler uniquement dans les 2h après création',
+                  style: TextStyle(fontSize: 12),
+                ),
+                enabled: false,
+              ),
+            ],
+            if (!stake.canCancel || stake.status != StakeStatus.pending) ...[
+              ListTile(
+                leading: const Icon(Icons.info_outline),
+                title: const Text('Options'),
+                subtitle: const Text('Aucune action disponible pour le moment'),
+                enabled: false,
+              ),
+            ],
           ],
         ),
       ),
     );
+  }
+
+  String _formatDuration(Duration duration) {
+    if (duration.isNegative) return '0m';
+    final hours = duration.inHours;
+    final minutes = duration.inMinutes.remainder(60);
+    if (hours > 0) {
+      return '${hours}h ${minutes}m';
+    }
+    return '${minutes}m';
   }
 
   Future<void> _handleCancelStake(BuildContext context, WidgetRef ref) async {

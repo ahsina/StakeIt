@@ -29,6 +29,7 @@ class _CreateStakeScreenState extends ConsumerState<CreateStakeScreen> {
   StakeCategory _selectedCategory = StakeCategory.fitness;
   ProofMode _selectedProofMode = ProofMode.manual;
   FailureMode _selectedFailureMode = FailureMode.allOrNothing;
+  StakeFrequency _selectedFrequency = StakeFrequency.custom;
   DateTime? _endDate;
   bool _isLoading = false;
 
@@ -101,6 +102,7 @@ class _CreateStakeScreenState extends ConsumerState<CreateStakeScreen> {
         requiredCount: int.parse(_requiredCountController.text),
         proofMode: _selectedProofMode,
         failureMode: _selectedFailureMode,
+        frequency: _selectedFrequency,
       );
 
       final stake = await ref.read(stakesProvider.notifier).createStake(request);
@@ -214,6 +216,35 @@ class _CreateStakeScreenState extends ConsumerState<CreateStakeScreen> {
                       : AppTextStyles.bodyMedium,
                 ),
               ),
+            ),
+            const SizedBox(height: 16),
+
+            // Frequency
+            DropdownButtonFormField<StakeFrequency>(
+              value: _selectedFrequency,
+              decoration: const InputDecoration(
+                labelText: 'Fréquence *',
+                prefixIcon: Icon(Icons.repeat),
+              ),
+              items: const [
+                DropdownMenuItem(
+                  value: StakeFrequency.daily,
+                  child: Text('Quotidien'),
+                ),
+                DropdownMenuItem(
+                  value: StakeFrequency.weekly,
+                  child: Text('Hebdomadaire'),
+                ),
+                DropdownMenuItem(
+                  value: StakeFrequency.custom,
+                  child: Text('Personnalisé'),
+                ),
+              ],
+              onChanged: (value) {
+                if (value != null) {
+                  setState(() => _selectedFrequency = value);
+                }
+              },
             ),
             const SizedBox(height: 16),
 

@@ -55,6 +55,15 @@ enum FailureMode {
   progressive,
 }
 
+enum StakeFrequency {
+  @JsonValue('Daily')
+  daily,
+  @JsonValue('Weekly')
+  weekly,
+  @JsonValue('Custom')
+  custom,
+}
+
 @freezed
 class StakeModel with _$StakeModel {
   const factory StakeModel({
@@ -69,6 +78,7 @@ class StakeModel with _$StakeModel {
     required int currentCount,
     required ProofMode proofMode,
     required FailureMode failureMode,
+    @Default(StakeFrequency.custom) StakeFrequency frequency,
     int? geofenceId,
     required DateTime startDate,
     required DateTime endDate,
@@ -93,6 +103,16 @@ extension StakeModelX on StakeModel {
 
   bool get isActive => status == StakeStatus.active;
 
+  bool get canCancel {
+    final hoursSinceCreation = DateTime.now().difference(createdAt).inHours;
+    return hoursSinceCreation < 2 && status == StakeStatus.pending;
+  }
+
+  Duration get cancellationTimeRemaining {
+    final twoHoursFromCreation = createdAt.add(const Duration(hours: 2));
+    return twoHoursFromCreation.difference(DateTime.now());
+  }
+
   String get categoryName {
     switch (category) {
       case StakeCategory.fitness:
@@ -115,6 +135,17 @@ extension StakeModelX on StakeModel {
         return 'Détox Numérique';
     }
   }
+
+  String get frequencyName {
+    switch (frequency) {
+      case StakeFrequency.daily:
+        return 'Quotidien';
+      case StakeFrequency.weekly:
+        return 'Hebdomadaire';
+      case StakeFrequency.custom:
+        return 'Personnalisé';
+    }
+  }
 }
 
 @freezed
@@ -128,6 +159,7 @@ class CreateStakeRequest with _$CreateStakeRequest {
     required int requiredCount,
     required ProofMode proofMode,
     required FailureMode failureMode,
+    @Default(StakeFrequency.custom) StakeFrequency frequency,
     int? geofenceId,
   }) = _CreateStakeRequest;
 

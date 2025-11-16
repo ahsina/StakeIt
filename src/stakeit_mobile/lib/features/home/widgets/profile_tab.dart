@@ -331,6 +331,40 @@ class ProfileTab extends ConsumerWidget {
               },
             ),
             const Divider(height: 32),
+            // Social Features
+            _MenuItem(
+              icon: Icons.people,
+              title: 'Amis',
+              subtitle: 'Gérer vos amis',
+              onTap: () {
+                context.go('${AppRoutes.home}/friends');
+              },
+            ),
+            _MenuItem(
+              icon: Icons.person_add,
+              title: 'Demandes d\'ami',
+              subtitle: 'Accepter ou refuser',
+              onTap: () {
+                context.go('${AppRoutes.home}/friend-requests');
+              },
+            ),
+            _MenuItem(
+              icon: Icons.feed,
+              title: 'Fil d\'actualité',
+              subtitle: 'Activités de vos amis',
+              onTap: () {
+                context.go('${AppRoutes.home}/social-feed');
+              },
+            ),
+            _MenuItem(
+              icon: Icons.card_giftcard,
+              title: 'Parrainage',
+              subtitle: 'Inviter des amis et gagner',
+              onTap: () {
+                context.go('${AppRoutes.home}/referral');
+              },
+            ),
+            const Divider(height: 32),
             _MenuItem(
               icon: Icons.help_outline,
               title: 'Aide & Support',

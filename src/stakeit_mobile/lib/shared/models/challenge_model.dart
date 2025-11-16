@@ -49,6 +49,8 @@ class ChallengeModel with _$ChallengeModel {
     required String creatorEmail,
     required String creatorName,
     required List<ChallengeParticipantModel> participants,
+    int? userRank,
+    double? prizeWonEUR,
   }) = _ChallengeModel;
 
   factory ChallengeModel.fromJson(Map<String, dynamic> json) =>

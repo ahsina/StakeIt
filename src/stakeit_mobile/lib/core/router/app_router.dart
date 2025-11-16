@@ -15,6 +15,10 @@ import '../../features/stats/presentation/stats_screen.dart';
 import '../../features/history/presentation/history_screen.dart';
 import '../../features/support/presentation/support_screen.dart';
 import '../../features/about/presentation/about_screen.dart';
+import '../../features/social/presentation/friends_screen.dart';
+import '../../features/social/presentation/friend_requests_screen.dart';
+import '../../features/social/presentation/social_feed_screen.dart';
+import '../../features/social/presentation/referral_screen.dart';
 
 // Route paths
 class AppRoutes {
@@ -156,6 +160,28 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: 'about',
             name: 'about',
             builder: (context, state) => const AboutScreen(),
+          ),
+
+          // Social
+          GoRoute(
+            path: 'friends',
+            name: 'friends',
+            builder: (context, state) => const FriendsScreen(),
+          ),
+          GoRoute(
+            path: 'friend-requests',
+            name: 'friendRequests',
+            builder: (context, state) => const FriendRequestsScreen(),
+          ),
+          GoRoute(
+            path: 'social-feed',
+            name: 'socialFeed',
+            builder: (context, state) => const SocialFeedScreen(),
+          ),
+          GoRoute(
+            path: 'referral',
+            name: 'referral',
+            builder: (context, state) => const ReferralScreen(),
           ),
         ],
       ),

@@ -18,6 +18,10 @@ class StakesTab extends ConsumerStatefulWidget {
 
 class _StakesTabState extends ConsumerState<StakesTab> with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  String _searchQuery = '';
+  StakeCategory? _selectedCategory;
+  StakeFrequency? _selectedFrequency;
+  bool _showFilters = false;
 
   @override
   void initState() {
@@ -61,6 +65,33 @@ class _StakesTabState extends ConsumerState<StakesTab> with SingleTickerProvider
       appBar: AppBar(
         title: const Text('Mes Stakes'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.search),
+            onPressed: () => _showSearchDialog(context),
+          ),
+          Stack(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.filter_list),
+                onPressed: () {
+                  setState(() => _showFilters = !_showFilters);
+                },
+              ),
+              if (_selectedCategory != null || _selectedFrequency != null)
+                Positioned(
+                  right: 8,
+                  top: 8,
+                  child: Container(
+                    width: 8,
+                    height: 8,
+                    decoration: const BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+            ],
+          ),
           IconButton(
             icon: const Icon(Icons.notifications_outlined),
             onPressed: () {
@@ -163,6 +194,79 @@ class _StakesTabState extends ConsumerState<StakesTab> with SingleTickerProvider
               ),
             ),
 
+            // Filter Panel
+            if (_showFilters)
+              SliverToBoxAdapter(
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  color: Colors.grey[100],
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Filtres',
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              setState(() {
+                                _selectedCategory = null;
+                                _selectedFrequency = null;
+                              });
+                            },
+                            child: const Text('Réinitialiser'),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      const Text('Catégorie:', style: TextStyle(fontWeight: FontWeight.w500)),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          ...StakeCategory.values.map((category) {
+                            final isSelected = _selectedCategory == category;
+                            return FilterChip(
+                              label: Text(_getCategoryName(category)),
+                              selected: isSelected,
+                              onSelected: (selected) {
+                                setState(() {
+                                  _selectedCategory = selected ? category : null;
+                                });
+                              },
+                            );
+                          }),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      const Text('Fréquence:', style: TextStyle(fontWeight: FontWeight.w500)),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        children: [
+                          ...StakeFrequency.values.map((frequency) {
+                            final isSelected = _selectedFrequency == frequency;
+                            return FilterChip(
+                              label: Text(_getFrequencyName(frequency)),
+                              selected: isSelected,
+                              onSelected: (selected) {
+                                setState(() {
+                                  _selectedFrequency = selected ? frequency : null;
+                                });
+                              },
+                            );
+                          }),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
             // Filter Tabs
             SliverToBoxAdapter(
               child: Padding(
@@ -193,35 +297,49 @@ class _StakesTabState extends ConsumerState<StakesTab> with SingleTickerProvider
                   onRetry: () => ref.read(stakesProvider.notifier).refresh(),
                 ),
               )
-            else if (stakesState.stakes.isEmpty)
-              SliverFillRemaining(
-                child: EmptyState(
-                  icon: Icons.emoji_events_outlined,
-                  title: 'Aucun stake',
-                  subtitle: 'Créez votre premier stake pour commencer !',
-                  actionButton: CustomButton(
-                    text: 'Créer un Stake',
-                    icon: Icons.add,
-                    onPressed: () {
-                      context.go('${AppRoutes.home}/create-stake');
-                    },
-                    type: ButtonType.primary,
-                    size: ButtonSize.large,
-                  ),
-                ),
-              )
             else
-              SliverPadding(
-                padding: const EdgeInsets.all(16),
-                sliver: SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) {
-                      final stake = stakesState.stakes[index];
-                      return _buildStakeCard(context, stake);
-                    },
-                    childCount: stakesState.stakes.length,
-                  ),
-                ),
+              Builder(
+                builder: (context) {
+                  final filteredStakes = _filterStakes(stakesState.stakes);
+
+                  if (filteredStakes.isEmpty) {
+                    return SliverFillRemaining(
+                      child: EmptyState(
+                        icon: Icons.emoji_events_outlined,
+                        title: _searchQuery.isNotEmpty || _selectedCategory != null || _selectedFrequency != null
+                            ? 'Aucun résultat'
+                            : 'Aucun stake',
+                        subtitle: _searchQuery.isNotEmpty || _selectedCategory != null || _selectedFrequency != null
+                            ? 'Aucun stake ne correspond à vos critères'
+                            : 'Créez votre premier stake pour commencer !',
+                        actionButton: _searchQuery.isEmpty && _selectedCategory == null && _selectedFrequency == null
+                            ? CustomButton(
+                                text: 'Créer un Stake',
+                                icon: Icons.add,
+                                onPressed: () {
+                                  context.go('${AppRoutes.home}/create-stake');
+                                },
+                                type: ButtonType.primary,
+                                size: ButtonSize.large,
+                              )
+                            : null,
+                      ),
+                    );
+                  }
+
+                  return SliverPadding(
+                    padding: const EdgeInsets.all(16),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                          final stake = filteredStakes[index];
+                          return _buildStakeCard(context, stake);
+                        },
+                        childCount: filteredStakes.length,
+                      ),
+                    ),
+                  );
+                },
               ),
           ],
         ),
@@ -403,6 +521,108 @@ class _StakesTabState extends ConsumerState<StakesTab> with SingleTickerProvider
       return '${duration.inHours}h restantes';
     } else {
       return '${duration.inMinutes}min restantes';
+    }
+  }
+
+  List<StakeModel> _filterStakes(List<StakeModel> stakes) {
+    var filtered = stakes;
+
+    // Search filter
+    if (_searchQuery.isNotEmpty) {
+      filtered = filtered.where((stake) {
+        return stake.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+            (stake.description?.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false);
+      }).toList();
+    }
+
+    // Category filter
+    if (_selectedCategory != null) {
+      filtered = filtered.where((stake) => stake.category == _selectedCategory).toList();
+    }
+
+    // Frequency filter
+    if (_selectedFrequency != null) {
+      filtered = filtered.where((stake) => stake.frequency == _selectedFrequency).toList();
+    }
+
+    return filtered;
+  }
+
+  void _showSearchDialog(BuildContext context) {
+    final searchController = TextEditingController(text: _searchQuery);
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Rechercher'),
+        content: TextField(
+          controller: searchController,
+          autofocus: true,
+          decoration: const InputDecoration(
+            hintText: 'Titre ou description...',
+            prefixIcon: Icon(Icons.search),
+            border: OutlineInputBorder(),
+          ),
+          onSubmitted: (value) {
+            setState(() => _searchQuery = value);
+            Navigator.pop(context);
+          },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              setState(() => _searchQuery = '');
+              Navigator.pop(context);
+            },
+            child: const Text('Effacer'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Annuler'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              setState(() => _searchQuery = searchController.text);
+              Navigator.pop(context);
+            },
+            child: const Text('Rechercher'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _getCategoryName(StakeCategory category) {
+    switch (category) {
+      case StakeCategory.fitness:
+        return 'Fitness';
+      case StakeCategory.education:
+        return 'Éducation';
+      case StakeCategory.productivity:
+        return 'Productivité';
+      case StakeCategory.finance:
+        return 'Finance';
+      case StakeCategory.personalDevelopment:
+        return 'Dév. Personnel';
+      case StakeCategory.family:
+        return 'Famille';
+      case StakeCategory.creativity:
+        return 'Créativité';
+      case StakeCategory.home:
+        return 'Maison';
+      case StakeCategory.digitalDetox:
+        return 'Détox Digital';
+    }
+  }
+
+  String _getFrequencyName(StakeFrequency frequency) {
+    switch (frequency) {
+      case StakeFrequency.daily:
+        return 'Quotidien';
+      case StakeFrequency.weekly:
+        return 'Hebdomadaire';
+      case StakeFrequency.custom:
+        return 'Personnalisé';
     }
   }
 }
