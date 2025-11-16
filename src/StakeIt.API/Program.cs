@@ -160,8 +160,8 @@ builder.Services.AddScoped<IPaymentService, PaymentService>();
 // Geofence Services
 builder.Services.AddScoped<IGeofenceService, GeofenceService>();
 
-// TODO: Add more application services here as we build them
-// builder.Services.AddScoped<IChallengeService, ChallengeService>();
+// Challenge Services
+builder.Services.AddScoped<IChallengeService, ChallengeService>();
 
 // ========================================
 // BUILD APP
