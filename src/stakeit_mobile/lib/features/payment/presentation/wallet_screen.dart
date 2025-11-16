@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/theme/app_constants.dart';
+import '../../../shared/widgets/widgets.dart';
+import '../../../shared/utils/utils.dart';
 import '../data/providers/payment_provider.dart';
 import '../data/repositories/payment_repository.dart';
 
@@ -36,28 +39,10 @@ class WalletScreen extends ConsumerWidget {
             // Wallet Balance Card
             walletAsync.when(
               data: (wallet) => _buildBalanceCard(context, ref, wallet),
-              loading: () => const Card(
-                child: Padding(
-                  padding: EdgeInsets.all(32),
-                  child: Center(child: CircularProgressIndicator()),
-                ),
-              ),
-              error: (error, _) => Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(32),
-                  child: Column(
-                    children: [
-                      const Icon(Icons.error_outline, size: 48, color: Colors.red),
-                      const SizedBox(height: 16),
-                      Text(error.toString()),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: () => ref.refresh(walletProvider),
-                        child: const Text('Réessayer'),
-                      ),
-                    ],
-                  ),
-                ),
+              loading: () => const LoadingIndicator(message: 'Chargement du portefeuille...'),
+              error: (error, _) => ErrorDisplay(
+                message: ErrorMapper.mapPaymentError(error),
+                onRetry: () => ref.refresh(walletProvider),
               ),
             ),
             const SizedBox(height: 24),
@@ -85,33 +70,10 @@ class WalletScreen extends ConsumerWidget {
             paymentMethodsAsync.when(
               data: (methods) {
                 if (methods.isEmpty) {
-                  return Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(32),
-                      child: Column(
-                        children: [
-                          Icon(
-                            Icons.credit_card_off,
-                            size: 48,
-                            color: Colors.grey[400],
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'Aucune méthode de paiement',
-                            style: TextStyle(color: Colors.grey[600]),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Ajoutez une carte pour participer aux stakes',
-                            style: TextStyle(
-                              color: Colors.grey[500],
-                              fontSize: 12,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
-                      ),
-                    ),
+                  return const EmptyState(
+                    icon: Icons.credit_card_off,
+                    title: 'Aucune méthode de paiement',
+                    subtitle: 'Ajoutez une carte pour participer aux stakes',
                   );
                 }
 
@@ -121,17 +83,10 @@ class WalletScreen extends ConsumerWidget {
                   }).toList(),
                 );
               },
-              loading: () => const Card(
-                child: Padding(
-                  padding: EdgeInsets.all(32),
-                  child: Center(child: CircularProgressIndicator()),
-                ),
-              ),
-              error: (error, _) => Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(32),
-                  child: Text('Erreur: $error'),
-                ),
+              loading: () => const LoadingIndicator(message: 'Chargement des cartes...'),
+              error: (error, _) => ErrorDisplay(
+                message: ErrorMapper.mapPaymentError(error),
+                onRetry: () => ref.refresh(paymentMethodsProvider),
               ),
             ),
           ],
@@ -177,7 +132,7 @@ class WalletScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 12),
             Text(
-              '${wallet.availableBalance.toStringAsFixed(2)}€',
+              CurrencyFormatter.format(wallet.availableBalance),
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 36,
@@ -187,7 +142,7 @@ class WalletScreen extends ConsumerWidget {
             const SizedBox(height: 8),
             if (wallet.pendingBalance > 0) ...[
               Text(
-                'En attente: ${wallet.pendingBalance.toStringAsFixed(2)}€',
+                'En attente: ${CurrencyFormatter.format(wallet.pendingBalance)}',
                 style: const TextStyle(
                   color: Colors.white70,
                   fontSize: 14,
@@ -201,7 +156,7 @@ class WalletScreen extends ConsumerWidget {
                 Expanded(
                   child: _buildStatItem(
                     'Gains totaux',
-                    '${wallet.lifetimeEarnings.toStringAsFixed(0)}€',
+                    CurrencyFormatter.format(wallet.lifetimeEarnings),
                     Colors.green[300]!,
                   ),
                 ),
@@ -209,27 +164,22 @@ class WalletScreen extends ConsumerWidget {
                 Expanded(
                   child: _buildStatItem(
                     'Dépenses totales',
-                    '${wallet.lifetimeSpent.toStringAsFixed(0)}€',
+                    CurrencyFormatter.format(wallet.lifetimeSpent),
                     Colors.orange[300]!,
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: wallet.availableBalance >= 10
-                    ? () => _showPayoutDialog(context, ref, wallet)
-                    : null,
-                icon: const Icon(Icons.send),
-                label: const Text('Retirer des fonds'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: Theme.of(context).primaryColor,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-              ),
+            CustomButton(
+              text: 'Retirer des fonds',
+              icon: Icons.send,
+              onPressed: wallet.availableBalance >= 10
+                  ? () => _showPayoutDialog(context, ref, wallet)
+                  : null,
+              type: ButtonType.secondary,
+              size: ButtonSize.large,
+              isFullWidth: true,
             ),
           ],
         ),
@@ -358,21 +308,10 @@ class WalletScreen extends ConsumerWidget {
   }
 
   void _showAddPaymentMethodDialog(BuildContext context, WidgetRef ref) {
-    showDialog(
+    InfoDialog.show(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Ajouter une carte'),
-        content: const Text(
-          'L\'ajout de carte nécessite Stripe SDK.\n'
-          'Implémentation complète disponible avec l\'intégration Stripe.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Fermer'),
-          ),
-        ],
-      ),
+      title: 'Ajouter une carte',
+      message: 'L\'ajout de carte nécessite Stripe SDK.\nImplémentation complète disponible avec l\'intégration Stripe.',
     );
   }
 
@@ -387,19 +326,14 @@ class WalletScreen extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              'Solde disponible: ${wallet.availableBalance.toStringAsFixed(2)}€',
-              style: const TextStyle(fontWeight: FontWeight.bold),
+              'Solde disponible: ${CurrencyFormatter.format(wallet.availableBalance)}',
+              style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 16),
-            TextField(
+            const SizedBox(height: AppSizes.paddingM),
+            CurrencyTextField(
+              label: 'Montant',
+              hint: 'Minimum 10€',
               controller: amountController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Montant',
-                suffixText: '€',
-                border: OutlineInputBorder(),
-                helperText: 'Minimum 10€',
-              ),
             ),
           ],
         ),
@@ -410,17 +344,23 @@ class WalletScreen extends ConsumerWidget {
           ),
           TextButton(
             onPressed: () async {
-              final amount = double.tryParse(amountController.text);
-              if (amount == null || amount < 10) {
+              final amount = CurrencyFormatter.parse(amountController.text);
+              if (amount < 10) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Montant invalide (min 10€)')),
+                  SnackBar(
+                    content: Text(Validators.validateAmount(amountController.text, min: 10.0) ?? ''),
+                    backgroundColor: AppColors.error,
+                  ),
                 );
                 return;
               }
 
               if (amount > wallet.availableBalance) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Solde insuffisant')),
+                  const SnackBar(
+                    content: Text('Solde insuffisant'),
+                    backgroundColor: AppColors.error,
+                  ),
                 );
                 return;
               }
@@ -432,7 +372,7 @@ class WalletScreen extends ConsumerWidget {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                       content: Text('Demande de retrait envoyée'),
-                      backgroundColor: Colors.green,
+                      backgroundColor: AppColors.success,
                     ),
                   );
                   ref.invalidate(walletProvider);
@@ -440,7 +380,10 @@ class WalletScreen extends ConsumerWidget {
               } catch (e) {
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Erreur: $e')),
+                    SnackBar(
+                      content: Text(ErrorMapper.mapPaymentError(e)),
+                      backgroundColor: AppColors.error,
+                    ),
                   );
                 }
               }
@@ -464,14 +407,17 @@ class WalletScreen extends ConsumerWidget {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Carte définie par défaut'),
-            backgroundColor: Colors.green,
+            backgroundColor: AppColors.success,
           ),
         );
       }
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text(ErrorMapper.mapPaymentError(e)),
+            backgroundColor: AppColors.error,
+          ),
         );
       }
     }
@@ -482,23 +428,11 @@ class WalletScreen extends ConsumerWidget {
     WidgetRef ref,
     PaymentMethodModel method,
   ) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await ConfirmationDialog.show(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Supprimer la carte'),
-        content: Text('Voulez-vous supprimer la carte ${method.cardDisplay} ?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Annuler'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Supprimer'),
-          ),
-        ],
-      ),
+      title: 'Supprimer la carte',
+      message: 'Voulez-vous supprimer la carte ${method.cardDisplay} ? Cette action est irréversible.',
+      isDangerous: true,
     );
 
     if (confirmed == true && context.mounted) {
@@ -508,15 +442,18 @@ class WalletScreen extends ConsumerWidget {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Carte supprimée'),
-              backgroundColor: Colors.green,
+              content: Text('Carte supprimée avec succès'),
+              backgroundColor: AppColors.success,
             ),
           );
         }
       } catch (e) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
+            SnackBar(
+              content: Text(ErrorMapper.mapPaymentError(e)),
+              backgroundColor: AppColors.error,
+            ),
           );
         }
       }
@@ -550,8 +487,10 @@ class WalletScreen extends ConsumerWidget {
                 child: ref.watch(transactionsProvider(1)).when(
                       data: (transactions) {
                         if (transactions.isEmpty) {
-                          return const Center(
-                            child: Text('Aucune transaction'),
+                          return const EmptyState(
+                            icon: Icons.receipt_long,
+                            title: 'Aucune transaction',
+                            subtitle: 'Vos transactions apparaîtront ici',
                           );
                         }
 
@@ -564,11 +503,10 @@ class WalletScreen extends ConsumerWidget {
                           },
                         );
                       },
-                      loading: () => const Center(
-                        child: CircularProgressIndicator(),
-                      ),
-                      error: (error, _) => Center(
-                        child: Text('Erreur: $error'),
+                      loading: () => const LoadingIndicator(message: 'Chargement des transactions...'),
+                      error: (error, _) => ErrorDisplay(
+                        message: ErrorMapper.mapPaymentError(error),
+                        onRetry: () => ref.refresh(transactionsProvider(1)),
                       ),
                     ),
               ),
@@ -594,19 +532,18 @@ class WalletScreen extends ConsumerWidget {
         ),
         title: Text(transaction.description),
         subtitle: Text(
-          _formatDate(transaction.createdAt),
-          style: TextStyle(color: Colors.grey[600], fontSize: 12),
+          DateFormatter.formatContextualDate(transaction.createdAt),
+          style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
         ),
         trailing: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             Text(
-              '${transaction.isCredit ? '+' : '-'}${transaction.amount.toStringAsFixed(2)}€',
-              style: TextStyle(
-                color: transaction.isCredit ? Colors.green : Colors.red,
+              CurrencyFormatter.formatWithSign(transaction.isCredit ? transaction.amount : -transaction.amount),
+              style: AppTextStyles.titleMedium.copyWith(
+                color: transaction.isCredit ? AppColors.success : AppColors.error,
                 fontWeight: FontWeight.bold,
-                fontSize: 16,
               ),
             ),
             Container(
@@ -633,18 +570,14 @@ class WalletScreen extends ConsumerWidget {
     switch (status.toLowerCase()) {
       case 'completed':
       case 'success':
-        return Colors.green;
+        return AppColors.success;
       case 'pending':
-        return Colors.orange;
+        return AppColors.warning;
       case 'failed':
       case 'cancelled':
-        return Colors.red;
+        return AppColors.error;
       default:
-        return Colors.grey;
+        return AppColors.textSecondary;
     }
-  }
-
-  String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
   }
 }
