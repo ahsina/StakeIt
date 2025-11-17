@@ -183,12 +183,14 @@ class WalletModel {
   final double pendingBalance;
   final double lifetimeEarnings;
   final double lifetimeSpent;
+  final double lifetimeCommissionPaid; // Total commission paid to platform
 
   WalletModel({
     required this.availableBalance,
     required this.pendingBalance,
     required this.lifetimeEarnings,
     required this.lifetimeSpent,
+    this.lifetimeCommissionPaid = 0.0,
   });
 
   factory WalletModel.fromJson(Map<String, dynamic> json) {
@@ -197,16 +199,21 @@ class WalletModel {
       pendingBalance: (json['pendingBalance'] as num).toDouble(),
       lifetimeEarnings: (json['lifetimeEarnings'] as num).toDouble(),
       lifetimeSpent: (json['lifetimeSpent'] as num).toDouble(),
+      lifetimeCommissionPaid: json['lifetimeCommissionPaid'] != null
+          ? (json['lifetimeCommissionPaid'] as num).toDouble()
+          : 0.0,
     );
   }
 
   double get totalBalance => availableBalance + pendingBalance;
+  double get netProfit => lifetimeEarnings - lifetimeSpent - lifetimeCommissionPaid;
 }
 
 class TransactionModel {
   final int id;
   final String type;
   final double amount;
+  final double? commissionAmount; // Commission deducted (if applicable)
   final String status;
   final String description;
   final DateTime createdAt;
@@ -215,6 +222,7 @@ class TransactionModel {
     required this.id,
     required this.type,
     required this.amount,
+    this.commissionAmount,
     required this.status,
     required this.description,
     required this.createdAt,
@@ -225,6 +233,9 @@ class TransactionModel {
       id: json['id'] as int,
       type: json['type'] as String,
       amount: (json['amount'] as num).toDouble(),
+      commissionAmount: json['commissionAmount'] != null
+          ? (json['commissionAmount'] as num).toDouble()
+          : null,
       status: json['status'] as String,
       description: json['description'] as String,
       createdAt: DateTime.parse(json['createdAt'] as String),
@@ -233,4 +244,8 @@ class TransactionModel {
 
   bool get isCredit => type == 'Credit' || type == 'Refund';
   bool get isDebit => type == 'Debit' || type == 'Charge';
+  bool get hasCommission => commissionAmount != null && commissionAmount! > 0;
+
+  // Net amount after commission
+  double get netAmount => hasCommission ? amount - commissionAmount! : amount;
 }

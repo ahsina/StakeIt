@@ -170,6 +170,27 @@ class WalletScreen extends ConsumerWidget {
                 ),
               ],
             ),
+            const SizedBox(height: 12),
+            // Commission and Net Profit row
+            Row(
+              children: [
+                Expanded(
+                  child: _buildStatItem(
+                    'Commission payée',
+                    CurrencyFormatter.format(wallet.lifetimeCommissionPaid),
+                    Colors.red[300]!,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: _buildStatItem(
+                    'Profit net',
+                    CurrencyFormatter.formatWithSign(wallet.netProfit),
+                    wallet.netProfit >= 0 ? Colors.green[300]! : Colors.red[300]!,
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 20),
             CustomButton(
               text: 'Retirer des fonds',
@@ -531,35 +552,74 @@ class WalletScreen extends ConsumerWidget {
           ),
         ),
         title: Text(transaction.description),
-        subtitle: Text(
-          DateFormatter.formatContextualDate(transaction.createdAt),
-          style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              DateFormatter.formatContextualDate(transaction.createdAt),
+              style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
+            ),
+            if (transaction.hasCommission) ...[
+              const SizedBox(height: 2),
+              Text(
+                'Commission: ${CurrencyFormatter.format(transaction.commissionAmount!)} (10%)',
+                style: AppTextStyles.labelSmall.copyWith(
+                  color: AppColors.warning,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ],
+          ],
         ),
+        isThreeLine: transaction.hasCommission,
         trailing: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            Text(
-              CurrencyFormatter.formatWithSign(transaction.isCredit ? transaction.amount : -transaction.amount),
-              style: AppTextStyles.titleMedium.copyWith(
-                color: transaction.isCredit ? AppColors.success : AppColors.error,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: _getStatusColor(transaction.status).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                transaction.status,
-                style: TextStyle(
-                  color: _getStatusColor(transaction.status),
-                  fontSize: 10,
+            if (transaction.hasCommission) ...[
+              // Show net amount after commission
+              Text(
+                CurrencyFormatter.formatWithSign(
+                  transaction.isCredit ? transaction.netAmount : -transaction.netAmount,
+                ),
+                style: AppTextStyles.titleMedium.copyWith(
+                  color: transaction.isCredit ? AppColors.success : AppColors.error,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-            ),
+              Text(
+                'de ${CurrencyFormatter.format(transaction.amount)}',
+                style: AppTextStyles.labelSmall.copyWith(
+                  color: AppColors.textSecondary,
+                  decoration: TextDecoration.lineThrough,
+                ),
+              ),
+            ] else ...[
+              // Show full amount when no commission
+              Text(
+                CurrencyFormatter.formatWithSign(
+                  transaction.isCredit ? transaction.amount : -transaction.amount,
+                ),
+                style: AppTextStyles.titleMedium.copyWith(
+                  color: transaction.isCredit ? AppColors.success : AppColors.error,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: _getStatusColor(transaction.status).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  transaction.status,
+                  style: TextStyle(
+                    color: _getStatusColor(transaction.status),
+                    fontSize: 10,
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),
