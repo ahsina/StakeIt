@@ -64,6 +64,17 @@ enum StakeFrequency {
   custom,
 }
 
+enum FailureDestination {
+  @JsonValue('Platform')
+  platform, // Default - goes to platform (10% commission)
+  @JsonValue('Charity')
+  charity, // Goes to a charity
+  @JsonValue('Friend')
+  friend, // Goes to a specific friend
+  @JsonValue('Pool')
+  pool, // Goes to winner pool for challenges
+}
+
 @freezed
 class StakeModel with _$StakeModel {
   const factory StakeModel({
@@ -79,6 +90,9 @@ class StakeModel with _$StakeModel {
     required ProofMode proofMode,
     required FailureMode failureMode,
     @Default(StakeFrequency.custom) StakeFrequency frequency,
+    @Default(FailureDestination.platform) FailureDestination failureDestination,
+    int? failureDestinationUserId, // Friend ID if destination is friend
+    String? failureDestinationCharityId, // Charity ID if destination is charity
     int? geofenceId,
     required DateTime startDate,
     required DateTime endDate,
