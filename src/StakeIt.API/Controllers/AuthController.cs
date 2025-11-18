@@ -189,4 +189,80 @@ public class AuthController : ControllerBase
             Claims = User.Claims.Select(c => new { c.Type, c.Value })
         });
     }
+
+    /// <summary>
+    /// Send email verification link
+    /// </summary>
+    [HttpPost("send-verification-email")]
+    [AllowAnonymous]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> SendVerificationEmail([FromBody] EmailRequest request)
+    {
+        var (success, errorMessage) = await _authService.SendEmailVerificationAsync(request.Email);
+
+        if (!success)
+        {
+            return BadRequest(new { message = errorMessage ?? "Failed to send verification email" });
+        }
+
+        return Ok(new { message = "Verification email sent successfully" });
+    }
+
+    /// <summary>
+    /// Verify email with token
+    /// </summary>
+    [HttpPost("verify-email")]
+    [AllowAnonymous]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> VerifyEmail([FromBody] TokenRequest request)
+    {
+        var (success, errorMessage) = await _authService.VerifyEmailAsync(request.Token);
+
+        if (!success)
+        {
+            return BadRequest(new { message = errorMessage ?? "Email verification failed" });
+        }
+
+        return Ok(new { message = "Email verified successfully" });
+    }
+
+    /// <summary>
+    /// Request password reset
+    /// </summary>
+    [HttpPost("forgot-password")]
+    [AllowAnonymous]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> ForgotPassword([FromBody] EmailRequest request)
+    {
+        var (success, errorMessage) = await _authService.RequestPasswordResetAsync(request.Email);
+
+        if (!success)
+        {
+            return BadRequest(new { message = errorMessage ?? "Failed to send password reset email" });
+        }
+
+        return Ok(new { message = "Password reset email sent successfully" });
+    }
+
+    /// <summary>
+    /// Reset password with token
+    /// </summary>
+    [HttpPost("reset-password")]
+    [AllowAnonymous]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
+    {
+        var (success, errorMessage) = await _authService.ResetPasswordAsync(request.Token, request.NewPassword);
+
+        if (!success)
+        {
+            return BadRequest(new { message = errorMessage ?? "Password reset failed" });
+        }
+
+        return Ok(new { message = "Password reset successfully" });
+    }
 }
